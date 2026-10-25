@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Journal de bord</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&amp;family=Barlow+Condensed:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 393px; height: 852px; position: relative; overflow: hidden; background: #EEF2F3; color: #0D1417; font-family: Barlow, system-ui, sans-serif; font-variant-numeric: tabular-nums">
+<div style="position: absolute; top: 0; left: 0; right: 0; bottom: 80px; overflow-y: auto; box-sizing: border-box; padding: 54px 14px 16px; display: flex; flex-direction: column; gap: 10px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; height: 40px; flex-shrink: 0">
+<span style="font-size: 24px; font-weight: 600">Journal de bord</span>
+<div style="display: flex; gap: 6px">
+<a href="Journal-proches.dc.html" style="height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid #D3DADD; background: #FFFFFF; display: flex; align-items: center; text-decoration: none; font-size: 14px; font-weight: 600">Proches</a>
+<span style="height: 36px; padding: 0 10px; border-radius: 10px; background: #0D1417; color: #FFFFFF; display: flex; align-items: center; font-size: 12px; font-weight: 600">Exemples</span>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #FFFFFF; border: 1px solid #D3DADD; flex-shrink: 0">
+<span style="font-size: 13px; font-weight: 600; color: #4B575C; text-transform: uppercase; letter-spacing: 0.06em">Saison 2026</span>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr))">
+<div style="display: flex; flex-direction: column"><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 36px; line-height: 1">412</span><span style="font-size: 13px; color: #4B575C">milles</span></div>
+<div style="display: flex; flex-direction: column"><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 36px; line-height: 1">38</span><span style="font-size: 13px; color: #4B575C">sorties</span></div>
+<div style="display: flex; flex-direction: column"><span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 36px; line-height: 1">96 h</span><span style="font-size: 13px; color: #4B575C">en mer</span></div>
+</div>
+<svg width="100%" height="112" viewBox="0 0 330 112" role="img" aria-label="Milles par mois : mai 38, juin 72, juillet 96, août 118, septembre 54, octobre 34">
+<line x1="0" y1="90" x2="330" y2="90" stroke="#D3DADD" stroke-width="1"></line>
+<rect x="8" y="64" width="38" height="26" rx="4" fill="#9FB4BC"></rect>
+<rect x="63" y="41" width="38" height="49" rx="4" fill="#9FB4BC"></rect>
+<rect x="118" y="25" width="38" height="65" rx="4" fill="#9FB4BC"></rect>
+<rect x="173" y="10" width="38" height="80" rx="4" fill="#9FB4BC"></rect>
+<rect x="228" y="53" width="38" height="37" rx="4" fill="#9FB4BC"></rect>
+<rect x="283" y="67" width="38" height="23" rx="4" fill="#B83A0B"></rect>
+<g font-family="Barlow, sans-serif" font-size="12" fill="#4B575C" text-anchor="middle">
+<text x="27" y="106">mai</text><text x="82" y="106">juin</text><text x="137" y="106">juil.</text><text x="192" y="106">août</text><text x="247" y="106">sept.</text><text x="302" y="106">oct.</text>
+<text x="192" y="7" font-weight="600" fill="#0D1417">118</text>
+</g>
+</svg>
+<span style="font-size: 13px; color: #4B575C">Plus longue sortie 31 M · pointe 7,8 nds · 1 840 M depuis le début</span>
+</div>
+
+<span style="font-size: 13px; font-weight: 600; color: #4B575C; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 2px 0">Navigations</span>
+<sc-for list="{{trips}}" as="r" hint-placeholder-count="4">
+<div style="display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 14px; background: #FFFFFF; border: 1px solid #D3DADD; flex-shrink: 0">
+<svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true" style="flex-shrink: 0; border-radius: 10px; background: #CFE3EA"><polyline points="{{r.pts}}" fill="none" stroke="#B83A0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
+<div style="display: flex; flex-direction: column; min-width: 0; flex: 1">
+<span style="font-size: 12px; color: #4B575C">{{r.date}}</span>
+<span style="font-size: 16px; font-weight: 600">{{r.name}}</span>
+<span style="font-size: 13px; color: #4B575C">{{r.stats}}</span>
+</div>
+</div>
+</sc-for>
+</div>
+
+<nav aria-label="Modes" style="position: absolute; left: 0; right: 0; bottom: 0; height: 80px; box-sizing: border-box; padding-bottom: 28px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #FFFFFF; border-top: 1px solid #D3DADD">
+<a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-decoration: none; color: #4B575C; font-size: 12px; font-weight: 600">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>
+Réglages</a>
+<a href="Bateau.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-decoration: none; color: #4B575C; font-size: 12px; font-weight: 600">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v14M12 4l6 11h-6M12 6l-5 9h5M4 19c2.5 1.5 13.5 1.5 16 0"></path></svg>
+Bateau</a>
+<a href="Journal-trace.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-decoration: none; color: #B83A0B; font-size: 12px; font-weight: 600">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c3-1 3-6 6-7s5 3 8 1"></path><circle cx="4" cy="18" r="2"></circle><circle cx="18" cy="12" r="2"></circle></svg>
+Journal</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":393,"height":852}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { trips: [
+      { date: 'Dim. 25 oct.', name: 'Saint-Cast → Saint-Malo', stats: '9,8 M · 2 h 14 · moy. 4,4 nds · vent 15 nds', pts: '44,48 38,40 30,34 24,24 16,12' },
+      { date: 'Sam. 17 oct.', name: 'Saint-Cast → Erquy, aller-retour', stats: '21 M · 4 h 50 · moy. 4,3 nds · vent 11 nds', pts: '46,40 34,36 20,30 10,26 20,22 34,28 46,36' },
+      { date: 'Dim. 4 oct.', name: 'Tour du cap Fréhel', stats: '14 M · 3 h 05 · moy. 4,5 nds · vent 13 nds', pts: '40,46 30,40 22,30 18,18 28,10 38,16 42,28 40,46' },
+      { date: 'Sam. 12 sept.', name: 'Saint-Cast → Chausey', stats: '26 M · 5 h 40 · moy. 4,6 nds · vent 14 nds', pts: '12,46 18,38 26,30 34,22 40,16 46,10' }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

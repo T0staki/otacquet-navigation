@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Proches en mer</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&amp;family=Barlow+Condensed:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 393px; height: 852px; position: relative; overflow: hidden; background: #EEF2F3; color: #0D1417; font-family: Barlow, system-ui, sans-serif; font-variant-numeric: tabular-nums">
+<div style="position: absolute; top: 0; left: 0; right: 0; bottom: 80px; overflow-y: auto; box-sizing: border-box; padding: 54px 14px 16px; display: flex; flex-direction: column; gap: 10px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; height: 40px; flex-shrink: 0">
+<div style="display: flex; align-items: center; gap: 8px">
+<a href="Journal-historique.dc.html" aria-label="Retour au journal" style="width: 36px; height: 36px; border-radius: 10px; border: 1px solid #D3DADD; background: #FFFFFF; display: flex; align-items: center; justify-content: center; text-decoration: none">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg>
+</a>
+<span style="font-size: 24px; font-weight: 600">Proches</span>
+</div>
+<button style="height: 36px; padding: 0 12px; border-radius: 10px; border: 0; background: #B83A0B; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 600">Inviter</button>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; background: #FFFFFF; border: 2px solid #B83A0B; flex-shrink: 0">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 40px; height: 40px; border-radius: 20px; background: #0D1417; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: 600">P1</span>
+<div style="display: flex; flex-direction: column; flex: 1; min-width: 0"><span style="font-size: 16px; font-weight: 600">[Prénom] est en mer</span><span style="font-size: 13px; color: #4B575C">[Bateau] · 5,2 nds · position il y a 2 min</span></div>
+<span style="width: 10px; height: 10px; border-radius: 5px; background: #C8281E"></span>
+</div>
+<button style="height: 44px; border-radius: 12px; border: 1px solid #0D1417; background: #FFFFFF; color: #0D1417; font-family: inherit; font-size: 15px; font-weight: 600">Suivre en direct sur la carte</button>
+</div>
+
+<sc-for list="{{feed}}" as="r" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #FFFFFF; border: 1px solid #D3DADD; flex-shrink: 0">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="width: 40px; height: 40px; border-radius: 20px; background: #9FB4BC; color: #0D1417; display: flex; align-items: center; justify-content: center; font-weight: 600">{{r.ini}}</span>
+<div style="display: flex; flex-direction: column; min-width: 0"><span style="font-size: 16px; font-weight: 600">{{r.who}}</span><span style="font-size: 13px; color: #4B575C">{{r.when}}</span></div>
+</div>
+<div style="display: flex; gap: 12px; align-items: center">
+<svg width="96" height="64" viewBox="0 0 96 64" aria-hidden="true" style="flex-shrink: 0; border-radius: 10px; background: #CFE3EA"><polyline points="{{r.pts}}" fill="none" stroke="#B83A0B" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline></svg>
+<div style="display: flex; flex-direction: column; min-width: 0">
+<span style="font-size: 16px; font-weight: 600">{{r.name}}</span>
+<span style="font-size: 13px; color: #4B575C">{{r.stats}}</span>
+</div>
+</div>
+<div style="display: flex; gap: 8px">
+<button style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #D3DADD; background: transparent; color: #0D1417; font-family: inherit; font-size: 14px; font-weight: 600">Bravo · {{r.likes}}</button>
+<button style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid #D3DADD; background: transparent; color: #0D1417; font-family: inherit; font-size: 14px; font-weight: 600">Commenter</button>
+</div>
+</div>
+</sc-for>
+</div>
+
+<nav aria-label="Modes" style="position: absolute; left: 0; right: 0; bottom: 0; height: 80px; box-sizing: border-box; padding-bottom: 28px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: #FFFFFF; border-top: 1px solid #D3DADD">
+<a href="Main.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-decoration: none; color: #4B575C; font-size: 12px; font-weight: 600">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>
+Réglages</a>
+<a href="Bateau.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-decoration: none; color: #4B575C; font-size: 12px; font-weight: 600">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v14M12 4l6 11h-6M12 6l-5 9h5M4 19c2.5 1.5 13.5 1.5 16 0"></path></svg>
+Bateau</a>
+<a href="Journal-historique.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-decoration: none; color: #B83A0B; font-size: 12px; font-weight: 600">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c3-1 3-6 6-7s5 3 8 1"></path><circle cx="4" cy="18" r="2"></circle><circle cx="18" cy="12" r="2"></circle></svg>
+Journal</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":393,"height":852}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { feed: [
+      { ini: 'P2', who: '[Prénom] · [Bateau]', when: 'Hier, 14:05 · exemple', name: 'Erquy → Saint-Cast', stats: '12 M · 2 h 40 · moy. 4,5 nds', likes: 3, pts: '10,40 24,36 40,30 56,30 72,26 86,22' },
+      { ini: 'P3', who: '[Prénom] · [Bateau]', when: 'Sam. 24 oct. · exemple', name: 'Sortie autour de Cézembre', stats: '8 M · 1 h 55 · moy. 4,2 nds', likes: 5, pts: '20,50 30,36 44,22 60,16 72,26 66,42 48,50 20,50' },
+      { ini: 'P2', who: '[Prénom] · [Bateau]', when: 'Dim. 18 oct. · exemple', name: 'Saint-Malo → Chausey', stats: '18 M · 3 h 30 · moy. 5,1 nds', likes: 2, pts: '12,54 28,44 44,34 60,24 76,16 88,10' }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

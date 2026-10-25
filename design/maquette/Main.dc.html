@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Réglages en mer</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&amp;family=Barlow+Condensed:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit}a:hover{color:inherit}
+</style>
+</helmet>
+<div style="width: 393px; height: 852px; position: relative; overflow: hidden; background: {{t.bg}}; color: {{t.ink}}; font-family: Barlow, system-ui, sans-serif; font-variant-numeric: tabular-nums">
+
+<div style="position: absolute; top: 0; left: 0; right: 0; bottom: 80px; overflow-y: auto; box-sizing: border-box; padding: 54px 14px 16px; display: flex; flex-direction: column; gap: 8px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; height: 40px; flex-shrink: 0">
+<div style="display: flex; flex-direction: column; min-width: 0">
+<span style="font-size: 18px; font-weight: 600">O'Tacquet</span>
+<span style="font-size: 12px; color: {{t.ink2}}">Vent 15 nds, raf. 19 · mer 1,0 m · {{wx.src}}</span>
+</div>
+<div style="display: flex; gap: 6px; flex-shrink: 0">
+<button onClick="{{refresh}}" aria-label="Recharger la météo" style="width: 40px; height: 40px; border-radius: 11px; border: 1px solid {{t.line}}; background: {{t.card}}; color: {{t.ink}}; display: flex; align-items: center; justify-content: center; padding: 0">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg>
+</button>
+<button onClick="{{toggleEdit}}" aria-pressed="{{wx.editPressed}}" aria-label="Modifier les conditions" style="width: 40px; height: 40px; border-radius: 11px; border: 1px solid {{wx.editBorder}}; background: {{wx.editBg}}; color: {{wx.editFg}}; display: flex; align-items: center; justify-content: center; padding: 0">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"></path></svg>
+</button>
+<a href="Bateau.dc.html" aria-label="Passer en plein écran" style="width: 40px; height: 40px; box-sizing: border-box; border-radius: 11px; border: 1px solid {{t.line}}; background: {{t.card}}; color: {{t.ink}}; display: flex; align-items: center; justify-content: center; text-decoration: none">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
+</a>
+</div>
+</div>
+
+<sc-if value="{{wx.edit}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 6px; background: {{t.card}}; border: 1px solid {{t.accent}}; border-radius: 14px; padding: 10px 12px; flex-shrink: 0">
+<span style="font-size: 13px; font-weight: 600">Corriger les conditions</span>
+<div style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 14px">Vent réel (B&amp;G ou estimé)</span><div style="display: flex; gap: 4px"><button aria-label="Moins un nœud" style="width: 40px; height: 36px; border-radius: 9px; border: 1px solid {{t.line}}; background: transparent; color: {{t.ink}}; font-size: 18px">−</button><span style="width: 56px; text-align: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 22px; line-height: 36px">15</span><button aria-label="Plus un nœud" style="width: 40px; height: 36px; border-radius: 9px; border: 1px solid {{t.line}}; background: transparent; color: {{t.ink}}; font-size: 18px">+</button></div></div>
+<div style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 14px">Vient du</span><div style="display: flex; gap: 4px"><button aria-label="Moins 5 degrés" style="width: 40px; height: 36px; border-radius: 9px; border: 1px solid {{t.line}}; background: transparent; color: {{t.ink}}; font-size: 18px">−</button><span style="width: 56px; text-align: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 22px; line-height: 36px">297°</span><button aria-label="Plus 5 degrés" style="width: 40px; height: 36px; border-radius: 9px; border: 1px solid {{t.line}}; background: transparent; color: {{t.ink}}; font-size: 18px">+</button></div></div>
+<div style="display: flex; align-items: center; justify-content: space-between"><span style="font-size: 14px">Mer</span><div style="display: flex; gap: 4px"><button aria-label="Moins 0,5 mètre" style="width: 40px; height: 36px; border-radius: 9px; border: 1px solid {{t.line}}; background: transparent; color: {{t.ink}}; font-size: 18px">−</button><span style="width: 56px; text-align: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 22px; line-height: 36px">1,0</span><button aria-label="Plus 0,5 mètre" style="width: 40px; height: 36px; border-radius: 9px; border: 1px solid {{t.line}}; background: transparent; color: {{t.ink}}; font-size: 18px">+</button></div></div>
+</div>
+</sc-if>
+
+<div style="display: flex; align-items: center; gap: 12px; background: {{t.card}}; border: 1px solid {{t.line}}; border-radius: 14px; padding: 8px 10px 8px 8px; flex-shrink: 0">
+<svg width="124" height="124" viewBox="0 0 120 120" role="img" aria-label="{{rose.aria}}" style="flex-shrink: 0">
+<circle cx="60" cy="60" r="58" fill="#2B3A42"></circle>
+<circle cx="60" cy="60" r="55" fill="none" stroke="#7F98A2" stroke-opacity="0.55" stroke-width="1"></circle>
+<g stroke="#7F98A2" stroke-opacity="0.7" stroke-width="1.2">
+<line x1="60" y1="5" x2="60" y2="10"></line><line x1="87.5" y1="12.4" x2="85" y2="16.7"></line><line x1="107.6" y1="32.5" x2="103.3" y2="35"></line><line x1="115" y1="60" x2="110" y2="60"></line><line x1="107.6" y1="87.5" x2="103.3" y2="85"></line><line x1="87.5" y1="107.6" x2="85" y2="103.3"></line><line x1="60" y1="115" x2="60" y2="110"></line><line x1="32.5" y1="107.6" x2="35" y2="103.3"></line><line x1="12.4" y1="87.5" x2="16.7" y2="85"></line><line x1="5" y1="60" x2="10" y2="60"></line><line x1="12.4" y1="32.5" x2="16.7" y2="35"></line><line x1="32.5" y1="12.4" x2="35" y2="16.7"></line>
+</g>
+<path d="M60 60 L30.9 13.4 A55 55 0 0 1 89.1 13.4 Z" fill="#F06C5C" fill-opacity="0.22"></path>
+<path d="M60 36.5 Q69.5 60 66.2 77.9 L53.8 77.9 Q50.5 60 60 36.5 Z" fill="#E8EEF0" fill-opacity="0.9"></path>
+<g transform="{{rose.tw}}"><line x1="60" y1="5" x2="60" y2="24" stroke="#6CC6E6" stroke-width="3.5" stroke-linecap="round"></line><polygon points="60,31 54.5,22 65.5,22" fill="#6CC6E6"></polygon></g>
+<g transform="{{rose.aw}}"><line x1="60" y1="5" x2="60" y2="18" stroke="#F2B544" stroke-width="3.5" stroke-linecap="round"></line><polygon points="60,25 54.5,16 65.5,16" fill="#F2B544"></polygon></g>
+</svg>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+<div style="display: flex; flex-direction: column">
+<span style="font-size: 12px; color: {{t.ink2}}">Cap · pilote auto</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 40px; line-height: 0.95">{{nav.hdg}}°</span>
+<span style="font-size: 12px; color: {{nav.twaColor}}">{{nav.twaTxt}}</span>
+<span style="font-size: 12px; color: {{t.ink2}}">{{nav.awaTxt}}</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px">
+<button onClick="{{hdgM10}}" aria-label="Cap moins 10 degrés" style="height: 34px; padding: 0; border-radius: 9px; border: 1px solid {{t.line}}; background: transparent; color: {{t.ink}}; font-family: inherit; font-weight: 600; font-size: 14px">−10</button>
+<button onClick="{{hdgM1}}" aria-label="Cap moins un degré" style="height: 34px; padding: 0; border-radius: 9px; border: 1px solid {{t.line}}; background: transparent; color: {{t.ink}}; font-family: inherit; font-weight: 600; font-size: 14px">−1</button>
+<button onClick="{{hdgP1}}" aria-label="Cap plus un degré" style="height: 34px; padding: 0; border-radius: 9px; border: 1px solid {{t.line}}; background: transparent; color: {{t.ink}}; font-family: inherit; font-weight: 600; font-size: 14px">+1</button>
+<button onClick="{{hdgP10}}" aria-label="Cap plus 10 degrés" style="height: 34px; padding: 0; border-radius: 9px; border: 1px solid {{t.line}}; background: transparent; color: {{t.ink}}; font-family: inherit; font-weight: 600; font-size: 14px">+10</button>
+</div>
+</div>
+</div>
+
+<div role="list" aria-label="Allures" style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; background: {{t.card}}; border: 1px solid {{t.line}}; border-radius: 12px; padding: 3px; flex-shrink: 0">
+<sc-for list="{{allures}}" as="a" hint-placeholder-count="6">
+<span role="listitem" aria-current="{{a.cur}}" style="height: 30px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: {{a.bg}}; color: {{a.fg}}; white-space: nowrap">{{a.label}}</span>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-direction: column; background: {{t.card}}; border: 1px solid {{t.line}}; border-radius: 14px; padding: 8px 14px; gap: 4px; flex-shrink: 0">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr))">
+<div style="display: flex; flex-direction: column">
+<span style="font-size: 12px; color: {{t.ink2}}">Vitesse réelle · loch</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 48px; line-height: 0.95">4,5</span>
+</div>
+<div style="display: flex; flex-direction: column; border-left: 1px solid {{t.line}}; padding-left: 14px">
+<span style="font-size: 12px; color: {{t.ink2}}">Vitesse cible</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 48px; line-height: 0.95; color: {{t.accent}}">{{cur.v}}</span>
+</div>
+</div>
+<span style="font-size: 13px; color: {{t.ink2}}">Gîte {{cur.phi}}° · barre {{cur.helm}}°</span>
+</div>
+
+<div style="display: flex; flex-direction: column; background: {{t.card}}; border: 1px solid {{t.line}}; border-radius: 14px; padding: 6px 14px 4px; flex-shrink: 0">
+<div style="display: flex; justify-content: space-between; align-items: center; height: 30px">
+<span style="font-size: 13px; font-weight: 600; color: {{t.ink2}}; text-transform: uppercase; letter-spacing: 0.06em">Réglages</span>
+<button onClick="{{allAuto}}" style="height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid {{t.line}}; background: transparent; color: {{t.ink}}; font-family: inherit; font-size: 13px; font-weight: 600">Tout en auto</button>
+</div>
+<sc-for list="{{cur.simple}}" as="r" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; gap: 3px; padding: 6px 0; border-top: 1px solid {{t.line}}">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px">
+<span style="font-size: 15px; font-weight: 600; min-width: 0">{{r.name}} <span style="font-weight: 500; font-size: 13px; color: {{t.ink2}}">· {{r.val}}</span></span>
+<button onClick="{{r.toggle}}" aria-pressed="{{r.pressed}}" aria-label="{{r.aria}}" style="flex-shrink: 0; min-width: 64px; height: 28px; border-radius: 14px; border: 1px solid {{r.pillBorder}}; background: {{r.pillBg}}; color: {{r.pillFg}}; font-family: inherit; font-size: 12px; font-weight: 600">{{r.mode}}</button>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; height: 16px">
+<span style="width: 58px; font-size: 11px; color: {{t.ink2}}">{{r.lo}}</span>
+<div style="flex: 1; position: relative; height: 16px; padding: 0 7px; box-sizing: border-box">
+<div style="position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; background: {{t.track}}"></div>
+<div style="position: relative; height: 16px"><div style="position: absolute; top: 1px; left: {{r.pos}}; width: 14px; height: 14px; box-sizing: border-box; border-radius: 7px; background: {{r.dotFill}}; border: 3px solid {{r.dot}}"></div></div>
+</div>
+<span style="width: 58px; font-size: 11px; color: {{t.ink2}}; text-align: right">{{r.hi}}</span>
+</div>
+</div>
+</sc-for>
+</div>
+
+<button onClick="{{toggleExpert}}" aria-expanded="{{expertOpen}}" style="display: flex; align-items: center; justify-content: space-between; min-height: 46px; padding: 0 14px; border-radius: 14px; border: 1px solid {{t.line}}; background: {{t.card}}; color: {{t.ink}}; font-family: inherit; text-align: left; flex-shrink: 0">
+<span style="display: flex; flex-direction: column"><span style="font-size: 15px; font-weight: 600">Mode expert</span><span style="font-size: 12px; color: {{t.ink2}}">pataras, hale-bas, chariots de génois</span></span>
+<span style="font-size: 18px; color: {{t.ink2}}">{{expertArrow}}</span>
+</button>
+
+<sc-if value="{{expert}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; background: {{t.card}}; border: 1px solid {{t.line}}; border-radius: 14px; padding: 4px 14px; flex-shrink: 0">
+<sc-for list="{{cur.rows}}" as="r" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-top: {{r.sep}}">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px">
+<span style="font-size: 15px; font-weight: 600; color: {{r.nameColor}}">{{r.name}} <span style="font-weight: 500; color: {{t.ink2}}">· {{r.val}}</span></span>
+<span style="font-size: 13px; font-weight: 600; color: {{r.impColor}}; white-space: nowrap">{{r.impact}}</span>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; height: 16px">
+<span style="width: 58px; font-size: 11px; color: {{t.ink2}}">{{r.lo}}</span>
+<div style="flex: 1; position: relative; height: 16px; padding: 0 7px; box-sizing: border-box">
+<div style="position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; background: {{t.track}}"></div>
+<div style="position: relative; height: 16px"><div style="position: absolute; top: 1px; left: {{r.pos}}; width: 14px; height: 14px; border-radius: 7px; background: {{r.dot}}"></div></div>
+</div>
+<span style="width: 58px; font-size: 11px; color: {{t.ink2}}; text-align: right">{{r.hi}}</span>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{cur.hasNext}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 0 4px; font-size: 14px; flex-shrink: 0">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: {{t.accent}}; flex-shrink: 0"><path d="M12 5v14M5 12l7 7 7-7"></path></svg>
+<span><span style="font-weight: 600">Prochain changement :</span> {{cur.next}}</span>
+</div>
+</sc-if>
+</div>
+
+<nav aria-label="Modes" style="position: absolute; left: 0; right: 0; bottom: 0; height: 80px; box-sizing: border-box; padding-bottom: 28px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); background: {{t.card}}; border-top: 1px solid {{t.line}}">
+<a href="Main.dc.html" aria-current="page" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-decoration: none; color: {{t.accent}}; font-size: 12px; font-weight: 600">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>
+Réglages
+</a>
+<a href="Bateau.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-decoration: none; color: {{t.ink2}}; font-size: 12px; font-weight: 600">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v14M12 4l6 11h-6M12 6l-5 9h5M4 19c2.5 1.5 13.5 1.5 16 0"></path></svg>
+Bateau
+</a>
+<a href="Journal-trace.dc.html" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; text-decoration: none; color: {{t.ink2}}; font-size: 12px; font-weight: 600">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c3-1 3-6 6-7s5 3 8 1"></path><circle cx="4" cy="18" r="2"></circle><circle cx="18" cy="12" r="2"></circle></svg>
+Journal
+</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"nuit":{"editor":"boolean","default":false},"$preview":{"width":393,"height":852}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { hdg: 245, man: {}, expert: false, edit: false, refreshed: false }; }
+  renderVals() {
+    const nuit = this.props.nuit ?? false;
+    const t = nuit
+      ? { bg: '#000000', card: '#120605', ink: '#FF5A45', ink2: '#D9483A', line: '#3A1410', track: '#2E0F0B', accent: '#FF5A45', onAccent: '#000000', muted: '#D9483A' }
+      : { bg: '#EEF2F3', card: '#FFFFFF', ink: '#0D1417', ink2: '#4B575C', line: '#D3DADD', track: '#D9E0E3', accent: '#B83A0B', onAccent: '#FFFFFF', muted: '#5F6B70' };
+    const fr = (n, d) => n.toFixed(d).replace('.', ',');
+    const TWD = 297, TWS = 15;
+    const s = this.state;
+    const setH = d => () => this.setState({ hdg: ((s.hdg + d) % 360 + 360) % 360 });
+    const twa = ((TWD - s.hdg + 540) % 360) - 180;
+    const side = twa >= 0 ? 'tribord' : 'bâbord', A = Math.abs(twa), sg = twa >= 0 ? 1 : -1;
+    const LAB = {
+      bs: { name: 'Pataras', lo: 'relâché', hi: 'à fond', pos: v => v, val: v => v === 0 ? 'relâché' : v === 100 ? 'à fond' : v + ' %' },
+      car: { name: 'Chariots génois', lo: 'avant', hi: 'arrière', pos: v => v, val: v => v === 0 ? 'tout à l’avant' : v === 100 ? 'tout à l’arrière' : v === 50 ? 'mi-rail' : v + ' % du rail' },
+      vang: { name: 'Hale-bas', lo: 'choqué', hi: 'étarqué', pos: v => v, val: v => v === 0 ? 'choqué' : v === 100 ? 'étarqué' : v === 50 ? 'mi-tension' : 'bien repris' }
+    };
+    const travTxt = v => v === 0 ? 'au milieu' : v === -100 ? 'tout au vent' : v === 100 ? 'tout sous le vent' : v < 0 ? 'à mi-course au vent' : 'à mi-course sous le vent';
+    const D = [
+      { twa: 52, v: 5.66, phi: 15, helm: 7, main: 8, jib: 16, trav: [0, 0.13], next: '1 ris vers 20 nds établis', R: [['bs', 0, 0.77], ['car', 25, 0.61], ['vang', 50, 0]] },
+      { twa: 70, v: 6.71, phi: 12, helm: 6, main: 22, jib: 25, trav: [100, 0], next: '', R: [['bs', 0, 0.39], ['car', 50, 0.09], ['vang', 50, 0]] },
+      { twa: 90, v: 6.90, phi: 7, helm: 3, main: 42, jib: 38, trav: [-50, 0], next: '', R: [['bs', 0, 0.48], ['car', 50, 0.14], ['vang', 75, 0.06]] },
+      { twa: 120, v: 6.64, phi: 4, helm: 1, main: 76, jib: 38, trav: [0, 0], next: '', R: [['bs', 0, 0.23], ['car', 75, 0.06], ['vang', 75, 0.05]] },
+      { twa: 150, v: 6.10, phi: 2, helm: 0, main: 84, jib: 38, trav: [-100, 0], next: '', R: [['bs', 0, 0.27], ['vang', 100, 0.07], ['car', 0, 0.03]] },
+      { twa: 180, v: 5.61, phi: 0, helm: 0, main: 76, jib: 38, trav: [-100, 0], next: '', R: [['bs', 0, 0.07], ['car', 0, 0.02], ['vang', 0, 0.01]] }
+    ];
+    const tooClose = A < 40;
+    const a = D.reduce((b, d) => Math.abs(d.twa - A) < Math.abs(b.twa - A) ? d : b, D[0]);
+    const V = tooClose ? 0 : a.v;
+    const awaAbs = Math.round(Math.atan2(TWS * Math.sin(A * Math.PI / 180), TWS * Math.cos(A * Math.PI / 180) + V) * 180 / Math.PI);
+    const ALL = [['Près', 0, 60], ['Bon plein', 60, 80], ['Travers', 80, 100], ['Largue', 100, 135], ['Gd largue', 135, 165], ['Arrière', 165, 181]];
+    const allures = ALL.map(([label, lo, hi]) => { const on = !tooClose && A >= lo && A < hi; return { label, cur: on ? 'true' : 'false', bg: on ? t.accent : 'transparent', fg: on ? t.onAccent : t.ink2 }; });
+    const jibTxt = j => j >= 38 ? 'choquée au maximum' : j <= 16 ? 'bordée à fond' : 'génois à ' + j + '° de l’axe';
+    const SIMPLE = [
+      ['reef', 'Ris', 'aucun, GV pleine', 0, 'GV pleine', '2 ris'],
+      ['furl', 'Génois', 'déroulé', 0, 'déroulé', 'roulé 80 %'],
+      ['main', 'Écoute de GV', 'bôme à ' + a.main + '° de l’axe', a.main / 85 * 100, 'bordée', 'choquée'],
+      ['jib', 'Écoute de génois', jibTxt(a.jib), (a.jib - 15) / 23 * 100, 'bordée', 'choquée'],
+      ['trav', 'Chariot de GV', a.trav[1] >= 0.05 ? travTxt(a.trav[0]) : travTxt(a.trav[0]) + ' (indifférent)', (a.trav[0] + 100) / 2, 'au vent', 'sous le vent']
+    ];
+    const simple = SIMPLE.map(([k, name, val, pos, lo, hi]) => {
+      const m = !!s.man[k];
+      return {
+        name, val: m ? 'à toi · conseil : ' + val : val, lo, hi,
+        pos: 'calc(' + Math.max(0, Math.min(100, pos)).toFixed(0) + '% - 7px)',
+        dot: m ? t.ink2 : t.accent, dotFill: m ? t.card : t.accent,
+        mode: m ? 'manuel' : 'auto', pressed: m ? 'true' : 'false',
+        aria: name + (m ? ' : repasser en auto' : ' : reprendre la main'),
+        pillBg: m ? 'transparent' : t.accent, pillFg: m ? t.ink : t.onAccent, pillBorder: m ? t.ink2 : t.accent,
+        toggle: () => this.setState({ man: Object.assign({}, s.man, { [k]: !m }) })
+      };
+    });
+    const rows = a.R.map(([k, v, sv], i) => {
+      const L = LAB[k], on = sv >= 0.05;
+      return {
+        name: L.name, val: L.val(v), lo: L.lo, hi: L.hi, pos: 'calc(' + L.pos(v) + '% - 7px)',
+        impact: on ? 'jusqu’à −' + fr(Math.max(0.1, Math.round(sv * 10) / 10), 1) + ' nd' : 'indifférent',
+        impColor: on ? t.accent : t.muted, nameColor: on ? t.ink : t.muted, dot: on ? t.accent : t.muted,
+        sep: i === 0 ? '0' : '1px solid ' + t.line
+      };
+    });
+    const cur = tooClose
+      ? { v: '—', phi: '—', helm: '—', simple, rows, hasNext: false, next: '' }
+      : { v: fr(a.v, 1), phi: a.phi, helm: a.helm, simple, rows, hasNext: !!a.next, next: a.next };
+    const nav = {
+      hdg: String(s.hdg).padStart(3, '0'),
+      twaTxt: tooClose ? 'Trop près du vent (' + A + '°) : abats' : 'vent réel du ' + TWD + '°, ' + A + '° ' + side,
+      awaTxt: 'vent apparent ' + awaAbs + '° ' + side,
+      twaColor: tooClose ? t.accent : t.ink2
+    };
+    const rose = {
+      tw: 'rotate(' + twa + ' 60 60)', aw: 'rotate(' + (sg * awaAbs) + ' 60 60)',
+      aria: 'Vent réel à ' + A + '° ' + side + ', vent apparent à ' + awaAbs + '° ' + side
+    };
+    const wx = {
+      src: s.refreshed ? 'Open-Meteo 14:32' : 'Open-Meteo 14:20',
+      edit: s.edit, editPressed: s.edit ? 'true' : 'false',
+      editBg: s.edit ? t.accent : t.card, editFg: s.edit ? t.onAccent : t.ink, editBorder: s.edit ? t.accent : t.line
+    };
+    return {
+      t, cur, nav, wx, rose, allures,
+      hdgM10: setH(-10), hdgP10: setH(10), hdgM1: setH(-1), hdgP1: setH(1),
+      refresh: () => this.setState({ refreshed: true }),
+      toggleEdit: () => this.setState({ edit: !s.edit }),
+      allAuto: () => this.setState({ man: {} }),
+      expert: s.expert, expertOpen: s.expert ? 'true' : 'false', expertArrow: s.expert ? '▴' : '▾',
+      toggleExpert: () => this.setState({ expert: !s.expert })
+    };
+  }
+}
+</script>
+</body>
+</html>

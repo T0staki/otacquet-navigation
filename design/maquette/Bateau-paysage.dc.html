@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Plein écran, paysage</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&amp;family=Barlow+Condensed:wght@500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#FFFFFF}a:hover{color:#FFFFFF}
+</style>
+</helmet>
+<div style="width: 852px; height: 393px; position: relative; overflow: hidden; background: #0B2A3A; font-family: Barlow, system-ui, sans-serif; color: #FFFFFF; font-variant-numeric: tabular-nums">
+<img src="/_blob/5c4a47959c9a72215fdeab7755d7299b" alt="O'Tacquet au près par 15 nœuds, vu de trois quarts arrière" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover">
+<button onClick="{{toggle}}" aria-label="Afficher ou masquer les informations" style="position: absolute; inset: 0; border: 0; background: transparent; padding: 0"></button>
+
+<sc-if value="{{show}}" hint-placeholder-val="{{ true }}">
+<div style="position: absolute; top: 16px; left: 59px; display: flex; flex-direction: column; padding: 8px 12px; border-radius: 14px; background: rgba(6, 12, 14, 0.62); pointer-events: none">
+<span style="font-size: 12px; color: #C9D3D6">Vent réel</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 26px; line-height: 1.05">15 nds · 52° tribord</span>
+</div>
+<div style="position: absolute; top: 16px; right: 59px; display: flex; flex-direction: column; align-items: flex-end; padding: 8px 12px; border-radius: 14px; background: rgba(6, 12, 14, 0.62); pointer-events: none">
+<span style="font-size: 12px; color: #C9D3D6">Gîte</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 26px; line-height: 1.05">15°</span>
+</div>
+<div style="position: absolute; left: 59px; bottom: 21px; display: flex; align-items: flex-end; gap: 20px; padding: 10px 16px; border-radius: 20px; background: rgba(6, 12, 14, 0.66); pointer-events: none">
+<div style="display: flex; flex-direction: column">
+<span style="font-size: 13px; color: #C9D3D6">Vitesse réelle · loch</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 64px; line-height: 0.95">4,5</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding-bottom: 4px">
+<span style="font-size: 13px; color: #C9D3D6">Cible 5,7 nds</span>
+<span style="font-family: 'Barlow Condensed', sans-serif; font-weight: 600; font-size: 28px; color: #FFA27A">−1,2</span>
+</div>
+</div>
+<a href="Main.dc.html" style="position: absolute; right: 59px; bottom: 21px; height: 48px; padding: 0 18px; border-radius: 14px; display: flex; align-items: center; gap: 8px; background: rgba(6, 12, 14, 0.66); text-decoration: none; font-size: 16px; font-weight: 600">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>
+Réglages
+</a>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":852,"height":393}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { show: true }; }
+  renderVals() {
+    return { show: this.state.show, toggle: () => this.setState({ show: !this.state.show }) };
+  }
+}
+</script>
+</body>
+</html>

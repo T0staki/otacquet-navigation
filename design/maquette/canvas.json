@@ -1,0 +1,14 @@
+{"v":3,"createdOnFiles":{"v":1,"at":"2026-10-24T17:40:00Z"},"title":"O'Tacquet en navigation","launch":{"view":"canvas"},"pages":[],
+"boards":{
+"Main.dc.html":{"x":0,"y":0,"w":393,"h":852,"title":"Réglages · jour","is_interactive":true,"radius":44},
+"Reglages-nuit.dc.html":{"x":473,"y":0,"w":393,"h":852,"title":"Réglages · nuit","is_interactive":true,"radius":44},
+"Bateau.dc.html":{"x":946,"y":0,"w":393,"h":852,"title":"Plein écran · portrait","is_interactive":true,"radius":44},
+"Bateau-paysage.dc.html":{"x":0,"y":972,"w":852,"h":393,"title":"Plein écran · paysage","is_interactive":true,"radius":44},
+"Journal-trace.dc.html":{"x":0,"y":1785,"w":393,"h":852,"title":"Journal · navigation en cours","is_interactive":true,"radius":44},
+"Journal-historique.dc.html":{"x":473,"y":1785,"w":393,"h":852,"title":"Journal · historique et stats","is_interactive":true,"radius":44},
+"Journal-proches.dc.html":{"x":946,"y":1785,"w":393,"h":852,"title":"Journal · proches","is_interactive":true,"radius":44}
+},
+"order":["Main.dc.html","Reglages-nuit.dc.html","Bateau.dc.html","Bateau-paysage.dc.html","Journal-trace.dc.html","Journal-historique.dc.html","Journal-proches.dc.html"],
+"notes":{"t1":{"x":0,"y":-300,"text":"O'Tacquet en navigation · maquette 2 (iPhone 15 Pro)","kind":"title1","maxW":1339},
+"t2":{"x":0,"y":1485,"text":"Journal de bord et proches · première maquette","kind":"title1","maxW":1339}},
+"designSystems":[]}
