@@ -165,11 +165,14 @@ a{color:var(--accent)}
     </div>
     <div class="inst" id="inst" hidden>
       <div class="cell"><span>STW</span><b id="i-stw">–</b></div>
-      <div class="cell"><span>Vent réel</span><b id="i-tw">–</b></div>
-      <div class="cell"><span>Vent apparent</span><b id="i-aw">–</b></div>
+      <div class="cell"><span>TWS</span><b id="i-tws">–</b></div>
+      <div class="cell"><span>TWA</span><b id="i-twa">–</b></div>
+      <div class="cell"><span>TWD</span><b id="i-twd">–</b></div>
+      <div class="cell"><span>AWS</span><b id="i-aws">–</b></div>
+      <div class="cell"><span>AWA</span><b id="i-awa">–</b></div>
       <div class="cell"><span>Cap</span><b id="i-hdg">–</b></div>
+      <div class="cell"><span>Profondeur</span><b id="i-depth">–</b></div>
       <div class="cell"><span>Gîte</span><b id="i-heel">–</b></div>
-      <div class="cell"><span>Fond</span><b id="i-depth">–</b></div>
     </div>
     <div class="card bg" id="bg-panel" hidden>
       <div class="label">Instruments B&amp;G (Wi-Fi)</div>
@@ -201,8 +204,8 @@ a{color:var(--accent)}
   </div>
   <div class="scroll">
     <div class="card" id="r-editbox" hidden style="border-color:var(--accent);display:flex;flex-direction:column;gap:6px">
-      <div class="erow"><span>Vent réel (nœuds)</span><span class="pas"><button data-act="etws-" aria-label="Moins un nœud">−</button><b id="r-etws">–</b><button data-act="etws+" aria-label="Plus un nœud">+</button></span></div>
-      <div class="erow"><span>Vient du</span><span class="pas"><button data-act="etwd-" aria-label="Moins 5 degrés">−</button><b id="r-etwd">–</b><button data-act="etwd+" aria-label="Plus 5 degrés">+</button></span></div>
+      <div class="erow"><span>TWS (nœuds)</span><span class="pas"><button data-act="etws-" aria-label="Moins un nœud">−</button><b id="r-etws">–</b><button data-act="etws+" aria-label="Plus un nœud">+</button></span></div>
+      <div class="erow"><span>TWD</span><span class="pas"><button data-act="etwd-" aria-label="Moins 5 degrés">−</button><b id="r-etwd">–</b><button data-act="etwd+" aria-label="Plus 5 degrés">+</button></span></div>
       <div class="erow"><span class="note" id="r-enote"></span><button class="lien" id="r-eback" data-act="eback" hidden>Revenir à la météo</button></div>
     </div>
     <div class="card cap">
@@ -228,7 +231,7 @@ a{color:var(--accent)}
     </div>
     <div class="all" id="r-all" role="list" aria-label="Allures"></div>
     <div class="card" style="padding:8px 14px;display:flex;flex-direction:column;gap:4px">
-      <div class="vit"><div data-leg="r-vm"><span id="r-vmlab">Vitesse réelle</span><b id="r-vm">–</b></div><div data-leg="r-vc"><span>Vitesse cible</span><b class="cible" id="r-vc">–</b></div></div>
+      <div class="vit"><div data-leg="r-vm"><span id="r-vmlab">Vitesse réelle</span><b id="r-vm">–</b></div><div data-leg="r-vc"><span>Vitesse max théorique</span><b class="cible" id="r-vc">–</b></div></div>
       <span class="note" id="r-phi" data-leg="r-phi"></span>
       <span class="note" id="r-calc" hidden>Calcul du modèle…</span>
     </div>
@@ -389,8 +392,11 @@ function showIns() {
   if (!bord) return; const v = bord.now(5000), side = a => a == null ? '' : ' <small>' + (a >= 0 ? 'tribord' : 'bâbord') + '</small>', deg = a => a == null ? '–' : Math.round(Math.abs(a)) + '°';
   const any = Object.keys(v).length > 0; $('inst').hidden = !any && !NATIVE;
   $('i-stw').innerHTML = v.stw != null ? fr(v.stw, 1) + ' <small>nds</small>' : '–';
-  $('i-tw').innerHTML = v.tws != null ? fr(v.tws, 0) + ' <small>nds</small> ' + (v.twa != null ? deg(v.twa) : '') : '–';
-  $('i-aw').innerHTML = v.aws != null ? fr(v.aws, 0) + ' <small>nds</small> ' + deg(v.awa) : '–';
+  $('i-tws').innerHTML = v.tws != null ? fr(v.tws, 0) + ' <small>nds</small>' : '–';
+  $('i-twa').innerHTML = v.twa != null ? deg(v.twa) + side(v.twa) : '–';
+  $('i-twd').textContent = v.twd != null ? String(Math.round(v.twd) % 360).padStart(3, '0') + '°' : '–';
+  $('i-aws').innerHTML = v.aws != null ? fr(v.aws, 0) + ' <small>nds</small>' : '–';
+  $('i-awa').innerHTML = v.awa != null ? deg(v.awa) + side(v.awa) : '–';
   $('i-hdg').textContent = v.heading != null ? String(Math.round(v.heading)).padStart(3, '0') + '°' : '–';
   $('i-heel').innerHTML = v.xdr_heel != null ? deg(v.xdr_heel) + side(v.xdr_heel) : '–';
   $('i-depth').innerHTML = v.depth != null ? fr(v.depth, 1) + ' <small>m</small>' : '–';
@@ -557,17 +563,20 @@ const LEGENDES = {
   's-avg': ['Moyenne', "Distance divisée par le temps passé en mouvement (au-dessus de 0,5 nœud) : les arrêts ne la font pas baisser."],
   's-peak': ['Pointe', "Meilleure vitesse fond moyenne sur 30 secondes depuis le début de l'enregistrement. Elle s'affiche après 30 secondes en mouvement."],
   'i-stw': ['STW', "Speed Through Water, vitesse surface : vitesse du bateau par rapport à l'eau, mesurée par le loch du B&G. Sans courant, elle est égale à la vitesse fond."],
-  'i-tw': ['Vent réel', "Vent qui souffle vraiment, calculé par le B&G à partir du vent apparent et de la vitesse du bateau : force en nœuds, angle compté depuis l'étrave."],
-  'i-aw': ['Vent apparent', "Vent mesuré en tête de mât, celui que reçoivent les voiles : force en nœuds, angle compté depuis l'étrave."],
+  'i-tws': ['TWS', "True Wind Speed, force du vent réel : le vent qui souffle vraiment, calculé par le B&G à partir du vent apparent et de la vitesse du bateau, en nœuds."],
+  'i-twa': ['TWA', "True Wind Angle, angle du vent réel : compté depuis l'étrave, côté tribord ou bâbord."],
+  'i-twd': ['TWD', "True Wind Direction, direction du vent réel : d'où il vient, en degrés vrais (par rapport au nord), quel que soit le cap du bateau."],
+  'i-aws': ['AWS', "Apparent Wind Speed, force du vent apparent : vent mesuré en tête de mât, celui que reçoivent les voiles, en nœuds."],
+  'i-awa': ['AWA', "Apparent Wind Angle, angle du vent apparent : compté depuis l'étrave, côté tribord ou bâbord."],
   'i-hdg': ['Cap', "Direction vers laquelle pointe l'étrave, donnée par le compas du B&G et corrigée de la déclinaison : cap vrai, comparable à la route fond."],
   'i-heel': ['Gîte', "Inclinaison du bateau sur le côté, mesurée par le B&G. À quai, elle indique déjà 3 à 4° : étalonnage à faire sur le Vulcan."],
-  'r-rose': ['Vent sur le bateau', "Le bateau vu de dessus, étrave en haut. Flèche bleue : vent réel. Flèche jaune : vent apparent, celui que reçoivent les voiles. Secteur rouge : trop près du vent (moins de 40° du vent réel)."],
+  'r-rose': ['Vent sur le bateau', "Le bateau vu de dessus, étrave en haut. Flèche bleue : vent réel (TWA). Flèche jaune : vent apparent (AWA), celui que reçoivent les voiles. Secteur rouge : trop près du vent (moins de 40° du vent réel)."],
   'r-vm': ['Vitesse réelle', "STW (Speed Through Water) : vitesse surface lue sur le loch du B&G. Sans B&G : SOG (Speed Over Ground), vitesse fond du GPS de l'iPhone, courant compris."],
-  'r-vc': ['Vitesse cible', "Vitesse que prévoit le modèle du simulateur pour ce vent et cet angle, voiles réglées comme conseillé, dans la mer formée par ce vent. Au près, le modèle est encore 20 à 45 % trop rapide par rapport à tes repères (4,5 nœuds par 15 nœuds) : prends-la comme un ordre de grandeur."],
+  'r-vc': ['Vitesse max théorique', "Vitesse que prévoit le modèle du simulateur pour ce vent et cet angle, voiles réglées comme conseillé, dans la mer formée par ce vent. Au près, le modèle est encore 20 à 45 % trop rapide par rapport à tes repères (4,5 nœuds par 15 nœuds) : prends-la comme un ordre de grandeur."],
   'r-phi': ['Gîte et barre', "Gîte et angle de barre que prévoit le modèle avec ces réglages ; entre parenthèses, la gîte mesurée par le B&G."],
   'r-expert': ['Mode expert', "Pour chaque réglage, la perte de vitesse si on le met au pire, les autres restant au mieux. Sous 0,05 nœud, il est indifférent. Le modèle conseille encore le pataras toujours relâché : écart connu, à corriger."],
   'r-next': ['Prochain changement', "Cherché en faisant forcir le vent nœud par nœud, à l'angle actuel. Le modèle conseille encore le ris trop tard : il ignore la barre et les rafales, alors que tu prends un ris vers 20 nœuds."],
-  'i-depth': ['Fond', "Hauteur d'eau sous la sonde du sondeur, sans correction (aucun décalage réglé sur le Vulcan). Sous la quille, avec 1,87 m de tirant d'eau, il y en a moins."]
+  'i-depth': ['Profondeur', "Hauteur d'eau sous la sonde du sondeur, sans correction (aucun décalage réglé sur le Vulcan). Sous la quille, avec 1,87 m de tirant d'eau, il y en a moins."]
 };
 (() => {
   const panel = $('panel'), fold = $('b-fold'), leg = $('legend');

@@ -1,5 +1,5 @@
 /* Écran Réglages de l'appli iPhone (maquette 3 « O'Tacquet en navigation »).
-   Vitesse cible, gîte, barre et réglages conseillés viennent du moteur du simulateur (objet PHY du dépôt privé
+   Vitesse max théorique, gîte, barre et réglages conseillés viennent du moteur du simulateur (objet PHY du dépôt privé
    simulateur-voile_v0), copié dans www/moteur/ par outillage/moteur.sh au moment de compiler l'appli : il n'est jamais publié.
    Vent : le B&G s'il est connecté, sinon Open-Meteo à la position du bateau (arrondie au centième de degré), corrigeable à la main.
    Angles du vent signés : positif = vent venant de tribord (tribord amures), comme le lecteur NMEA. */
@@ -102,7 +102,7 @@
     if (!PHY || !ctx.visible()) return;
     const c = conditions();
     $('r-src').textContent = c.tws != null
-      ? 'Vent ' + fr(c.tws, 0) + ' nds' + (c.gust != null ? ', rafales ' + fr(c.gust, 0) : '') + (c.hs != null ? ' · mer ' + fr(c.hs, 1) + ' m' : '') + ' · ' + c.src
+      ? 'TWS ' + fr(c.tws, 0) + ' nds' + (c.gust != null ? ', rafales ' + fr(c.gust, 0) : '') + (c.hs != null ? ' · mer ' + fr(c.hs, 1) + ' m' : '') + ' · ' + c.src
       : (S.meteoErr || 'Vent en attente du B&G ou de la météo');
     // cap et rose
     const A = c.twa != null ? Math.abs(c.twa) : null, cote = c.twa == null ? '' : c.twa >= 0 ? 'tribord amures' : 'bâbord amures';
@@ -110,7 +110,7 @@
     $('r-hdgsrc').textContent = c.hdg != null ? 'Cap · ' + c.hdgSrc : 'Cap inconnu : choisis-le';
     $('r-hdgback').hidden = S.hdgSet == null;
     const tooClose = A != null && A < TROP_PRES;
-    $('r-twa').textContent = A == null ? (c.tws != null ? 'il manque le cap pour l’angle du vent' : '') : tooClose ? 'Trop près du vent (' + Math.round(A) + '°) : abats' : 'vent réel' + (c.twd != null ? ' du ' + String(Math.round(c.twd) % 360).padStart(3, '0') + '°' : '') + ', ' + Math.round(A) + '° ' + cote;
+    $('r-twa').textContent = A == null ? (c.tws != null ? 'il manque le cap pour la TWA' : '') : tooClose ? 'Trop près du vent (' + Math.round(A) + '°) : abats' : (c.twd != null ? 'TWD ' + String(Math.round(c.twd) % 360).padStart(3, '0') + '° · ' : '') + 'TWA ' + Math.round(A) + '° ' + cote;
     $('r-twa').classList.toggle('alerte', tooClose);
     // moteur sur le vent lissé, arrondi (1 nd, 5°)
     let r = null;
@@ -123,7 +123,7 @@
     if (r) dernier = r;
     let awa = c.awa;
     if (awa == null && c.twa != null && r) awa = Math.sign(c.twa || 1) * Math.atan2(c.tws * Math.sin(A * Math.PI / 180), c.tws * Math.cos(A * Math.PI / 180) + r.V) * 180 / Math.PI;
-    $('r-aw-txt').textContent = awa != null ? 'vent apparent ' + Math.round(Math.abs(awa)) + '°' + (c.awa != null ? ' (B&G)' : ' (calculé)') : '';
+    $('r-aw-txt').textContent = awa != null ? 'AWA ' + Math.round(Math.abs(awa)) + '°' + (c.awa != null ? ' (B&G)' : ' (calculé)') : '';
     $('r-tw').setAttribute('transform', 'rotate(' + (c.twa != null ? c.twa : 0) + ' 60 60)'); $('r-tw').style.display = c.twa != null ? '' : 'none';
     $('r-aw').setAttribute('transform', 'rotate(' + (awa != null ? awa : 0) + ' 60 60)'); $('r-aw').style.display = awa != null ? '' : 'none';
     $('r-rose').setAttribute('aria-label', c.twa != null ? 'Vent réel à ' + Math.round(A) + '° ' + cote + (awa != null ? ', vent apparent à ' + Math.round(Math.abs(awa)) + '°' : '') : 'Angle du vent inconnu');
