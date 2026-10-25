@@ -37,11 +37,11 @@ button{font-family:inherit;color:inherit}
 .dot.off{background:var(--ink2)}
 .float{position:absolute;z-index:500}
 .recenter{right:12px;top:12px;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center}
-.panel{min-height:0;overflow-y:auto;background:var(--bg);padding:12px max(14px,env(safe-area-inset-right,0px)) 12px max(14px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line)}
-.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.cell{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:7px 10px;display:flex;flex-direction:column;min-width:0}
+.panel{min-height:0;overflow-y:auto;background:var(--bg);padding:2px max(14px,env(safe-area-inset-right,0px)) 10px max(14px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.cell{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:5px 9px;display:flex;flex-direction:column;min-width:0;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .cell span{font-size:12px;color:var(--ink2)}
-.cell b{font-family:var(--fc);font-weight:600;font-size:28px;line-height:1.05;white-space:nowrap}
+.cell b{font-family:var(--fc);font-weight:600;font-size:24px;line-height:1.05;white-space:nowrap}
 .cell b small{font-size:15px;font-weight:500}
 .btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .btn{height:52px;border-radius:14px;border:1px solid var(--ink);background:var(--card);font-size:17px;font-weight:600}
@@ -73,8 +73,8 @@ input.name{width:100%;height:44px;border-radius:10px;border:1px solid var(--line
 .endbox{display:flex;flex-direction:column;gap:8px}
 .row{display:flex;gap:8px;align-items:center}
 .row>*{flex:1}
-.inst{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.inst .cell b{font-size:22px}
+.inst{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.inst .cell b{font-size:20px}
 .inst .cell b small{font-size:13px}
 .bg{display:flex;flex-direction:column;gap:8px}
 .bg .row input{height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:16px;padding:0 10px;min-width:0}
@@ -82,6 +82,11 @@ input.name{width:100%;height:44px;border-radius:10px;border:1px solid var(--line
 .dbg{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--ink2);white-space:pre-wrap}
 a{color:var(--accent)}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.handle{display:flex;flex-direction:column;align-items:center;gap:2px;height:30px;justify-content:center;border:0;background:transparent;color:var(--ink2);font-size:12px;flex-shrink:0}
+.handle i{display:block;width:40px;height:5px;border-radius:3px;background:var(--line)}
+.panel.min .grid,.panel.min .inst,.panel.min #bg-panel,.panel.min #rec-note{display:none!important}
+.legend{position:fixed;z-index:1000;left:12px;right:12px;padding:10px 12px;border-radius:12px;background:var(--ink);color:var(--bg);font-size:14px;line-height:1.35;box-shadow:0 6px 24px rgba(0,0,0,.3);pointer-events:none}
+.legend b{display:block;font-size:15px;margin-bottom:2px}
 </style>
 </head>
 <body>
@@ -102,7 +107,8 @@ a{color:var(--accent)}
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path></svg>
     </button>
   </div>
-  <div class="panel">
+  <div class="panel" id="panel">
+    <button class="handle" id="b-fold" aria-expanded="true" aria-controls="panel"><i></i><span id="fold-txt">Réduire les mesures</span></button>
     <div class="grid">
       <div class="cell"><span>Distance</span><b id="s-dist">0,00 <small>M</small></b></div>
       <div class="cell"><span>Durée</span><b id="s-dur">0:00</b></div>
@@ -154,9 +160,10 @@ a{color:var(--accent)}
   <div class="scroll" id="trip"></div>
 </section>
 
+<div class="legend" id="legend" role="tooltip" hidden><b id="leg-t"></b><span id="leg-p"></span></div>
 <nav class="tabs" aria-label="Modes">
   <button class="tab" id="t-rec" aria-current="page">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>En mer</button>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>Trace</button>
   <button class="tab" id="t-log">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c3-1 3-6 6-7s5 3 8 1"></path><circle cx="4" cy="18" r="2"></circle><circle cx="18" cy="12" r="2"></circle></svg>Journal</button>
 </nav>
@@ -437,6 +444,47 @@ if (NATIVE) {
   bgConnect();
   setInterval(showIns, 1000);
 }
+/* ---------- Écran Trace : mesures repliables, légende par appui long ---------- */
+const LEGENDES = {
+  's-dist': ['Distance', "Milles parcourus depuis le début de l'enregistrement, mesurés sur la trace GPS lissée : le bruit des positions à l'arrêt n'est pas compté."],
+  's-dur': ['Durée', "Temps écoulé depuis le début de l'enregistrement, pauses comprises."],
+  's-sog': ['Vitesse', "Vitesse fond donnée par le GPS de l'iPhone : vitesse par rapport au fond, courant compris."],
+  's-avg': ['Moyenne', "Distance divisée par le temps passé en mouvement (au-dessus de 0,5 nœud) : les arrêts ne la font pas baisser."],
+  's-peak': ['Pointe', "Meilleure vitesse fond moyenne sur 30 secondes depuis le début de l'enregistrement. Elle s'affiche après 30 secondes en mouvement."],
+  's-cog': ['Route fond', "Direction réelle du déplacement sur le fond, donnée par le GPS, en degrés vrais. Elle s'écarte du cap quand il y a du courant ou de la dérive. Affichée au-dessus de 0,5 nœud."],
+  'i-stw': ['Loch', "Vitesse surface : vitesse du bateau par rapport à l'eau, mesurée par le loch du B&G. Sans courant, elle est égale à la vitesse fond."],
+  'i-tw': ['Vent réel', "Vent qui souffle vraiment, calculé par le B&G à partir du vent apparent et de la vitesse du bateau : force en nœuds, angle compté depuis l'étrave."],
+  'i-aw': ['Vent apparent', "Vent mesuré en tête de mât, celui que reçoivent les voiles : force en nœuds, angle compté depuis l'étrave."],
+  'i-hdg': ['Cap', "Direction vers laquelle pointe l'étrave, donnée par le compas du B&G et corrigée de la déclinaison : cap vrai, comparable à la route fond."],
+  'i-heel': ['Gîte', "Inclinaison du bateau sur le côté, mesurée par le B&G. À quai, elle indique déjà 3 à 4° : étalonnage à faire sur le Vulcan."],
+  'i-depth': ['Fond', "Hauteur d'eau sous la sonde du sondeur, sans correction (aucun décalage réglé sur le Vulcan). Sous la quille, avec 1,87 m de tirant d'eau, il y en a moins."]
+};
+(() => {
+  const panel = $('panel'), fold = $('b-fold'), leg = $('legend');
+  const setFold = min => {
+    panel.classList.toggle('min', min); fold.setAttribute('aria-expanded', String(!min));
+    $('fold-txt').textContent = min ? 'Afficher les mesures' : 'Réduire les mesures';
+    try { localStorage.setItem('mesures-reduites', min ? '1' : ''); } catch (e) {}
+    if (map) setTimeout(() => map.invalidateSize(), 0);
+  };
+  let min0 = false; try { min0 = localStorage.getItem('mesures-reduites') === '1'; } catch (e) {}
+  setFold(min0);
+  fold.onclick = () => setFold(!panel.classList.contains('min'));
+  let timer = null;
+  const hide = () => { clearTimeout(timer); timer = null; leg.hidden = true; };
+  panel.addEventListener('pointerdown', e => {
+    const cell = e.target.closest('.cell'), b = cell && cell.querySelector('b'), t = b && LEGENDES[b.id];
+    if (!t) return;
+    hide();
+    timer = setTimeout(() => {
+      $('leg-t').textContent = t[0]; $('leg-p').textContent = t[1]; leg.hidden = false;
+      const r = cell.getBoundingClientRect();   // au-dessus de la case, que le doigt cache
+      leg.style.top = Math.max(8, r.top - leg.offsetHeight - 8) + 'px';
+    }, 400);
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) panel.addEventListener(ev, hide);
+  panel.addEventListener('contextmenu', e => { if (e.target.closest('.cell')) e.preventDefault(); });
+})();
 window.__app = { DB, onPos: p => onPos(p), state: () => rec.state, stats: () => tr && tr.stats() };
 </script>
 </body>
