@@ -4,6 +4,7 @@ Appli de navigation et journal de bord d'O'Tacquet (Bavaria 31 Cruiser de Jéré
 
 ## Langue et manière
 - Tout en français : interface, commentaires, commits, documents. Tutoiement avec Jérémie ; Claude parle au féminin ; niveau de confiance en % en tête de réponse.
+- Interface sans abréviations, sauf les termes et sigles du B&G Vulcan pour les données du bord (STW, SOG…), expliqués dans les légendes par appui long.
 - Dépôt public : jamais de position réelle du bateau, de numéro de série, d'adresse MAC ni de donnée personnelle dans le code, les tests ou les commits. Les traces restent sur le téléphone.
 
 ## Structure

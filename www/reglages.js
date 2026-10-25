@@ -131,7 +131,7 @@
     $('r-all').innerHTML = ALLURES.map(([l, lo, hi]) => { const on = A != null && !tooClose && A >= lo && A < hi; return '<span role="listitem"' + (on ? ' aria-current="true" class="on"' : '') + '>' + l + '</span>'; }).join('');
     // vitesses
     $('r-vm').textContent = c.vm != null ? fr(c.vm, 1) : '–';
-    $('r-vmlab').textContent = 'Vitesse réelle · ' + (c.vmSrc === 'loch' ? 'loch' : c.vmSrc === 'GPS' ? 'GPS' : 'en attente');
+    $('r-vmlab').textContent = 'Vitesse réelle · ' + (c.vmSrc === 'loch' ? 'STW' : c.vmSrc === 'GPS' ? 'SOG' : 'en attente');
     $('r-vc').textContent = r && !tooClose ? fr(r.V, 1) : '–';
     const gm = c.v.xdr_heel;
     $('r-phi').textContent = r && !tooClose ? 'Gîte ' + Math.round(r.phi) + '°' + (gm != null ? ' (mesurée ' + Math.round(Math.abs(gm)) + '°)' : '') + ' · barre ' + Math.round(r.helm) + '°' : (gm != null ? 'Gîte mesurée ' + Math.round(Math.abs(gm)) + '°' : '');
