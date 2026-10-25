@@ -50,7 +50,7 @@ button{font-family:inherit;color:inherit}
 .btn:disabled{opacity:.45}
 .note{font-size:13px;color:var(--ink2);line-height:1.35}
 .warn{font-size:13px;line-height:1.35;padding:8px 10px;border-radius:10px;background:var(--card);border:1px solid var(--accent)}
-.tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:var(--card);border-top:1px solid var(--line);padding-bottom:max(6px,env(safe-area-inset-bottom,0px))}
+.tabs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:max(6px,env(safe-area-inset-bottom,0px))}
 .tab{height:50px;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:12px;font-weight:600;color:var(--ink2)}
 .tab[aria-current="page"]{color:var(--accent)}
 .scroll{flex:1;min-height:0;overflow-y:auto;padding:4px max(14px,env(safe-area-inset-right,0px)) 16px max(14px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:10px}
@@ -87,6 +87,53 @@ a{color:var(--accent)}
 .panel.min .grid,.panel.min .inst,.panel.min #bg-panel,.panel.min #rec-note{display:none!important}
 .legend{position:fixed;z-index:1000;left:12px;right:12px;padding:10px 12px;border-radius:12px;background:var(--ink);color:var(--bg);font-size:14px;line-height:1.35;box-shadow:0 6px 24px rgba(0,0,0,.3);pointer-events:none}
 .legend b{display:block;font-size:15px;margin-bottom:2px}
+/* Écran Réglages (maquette 3) */
+#v-set .scroll{gap:8px;padding-top:2px}
+.ibtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0}
+.ibtn.on{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.erow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.erow .pas button,.pas button{width:40px;height:34px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--ink);font-size:18px;padding:0}
+.erow b{display:inline-block;width:56px;text-align:center;font-family:var(--fc);font-weight:600;font-size:22px;line-height:34px}
+.pas{display:inline-flex;gap:4px;flex-shrink:0}
+.cap{display:flex;align-items:center;gap:12px;padding:8px 10px 8px 8px}
+.cap .cb{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+.cap .hv{font-family:var(--fc);font-weight:600;font-size:40px;line-height:.95}
+.cap .t{font-size:12px;color:var(--ink2)}
+.cap .t.alerte{color:var(--accent);font-weight:600}
+.hb{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.hb button{height:34px;padding:0;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--ink);font-family:inherit;font-weight:600;font-size:14px}
+.lien{border:0;background:none;padding:0;color:var(--accent);font:inherit;font-size:12px;font-weight:600;text-align:left}
+.all{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:3px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px}
+.all span{min-height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;line-height:1.1;font-weight:600;color:var(--ink2);padding:2px}
+.all span.on{background:var(--accent);color:var(--onaccent)}
+.vit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.vit>div{display:flex;flex-direction:column}
+.vit>div+div{border-left:1px solid var(--line);padding-left:14px}
+.vit span{font-size:12px;color:var(--ink2)}
+.vit b{font-family:var(--fc);font-weight:600;font-size:48px;line-height:.95}
+.vit b.cible{color:var(--accent)}
+.rg{display:flex;flex-direction:column;gap:3px;padding:6px 0;border-top:1px solid var(--line)}
+.rg:first-child{border-top:0}
+.rg.off .rn,.rg.off .imp{color:var(--ink2)}
+.rh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rn{font-size:15px;font-weight:600;min-width:0;flex:1}
+.rn small{font-weight:500;font-size:13px;color:var(--ink2)}
+.imp{font-size:13px;font-weight:600;color:var(--accent);white-space:nowrap}
+.pill{flex-shrink:0;min-width:64px;height:28px;border-radius:14px;border:1px solid var(--ink2);background:transparent;color:var(--ink);font-family:inherit;font-size:12px;font-weight:600}
+.pill.on{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.sl{display:flex;align-items:center;gap:8px;height:16px}
+.sl>span{width:62px;font-size:11px;color:var(--ink2)}
+.sl>span:last-child{text-align:right}
+.sl .tr{flex:1;position:relative;height:16px;margin:0 7px}
+.sl .tr::before{content:"";position:absolute;left:-7px;right:-7px;top:7px;height:3px;border-radius:2px;background:var(--line)}
+.sl .tr i{position:absolute;top:1px;width:14px;height:14px;box-sizing:border-box;border-radius:7px;border:3px solid var(--ink2);background:var(--card)}
+.sl .tr i.on{border-color:var(--accent);background:var(--accent)}
+.rhead{display:flex;justify-content:space-between;align-items:center;height:30px}
+.rhead button{height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);font-family:inherit;font-size:13px;font-weight:600}
+.expbtn{display:flex;align-items:center;justify-content:space-between;min-height:46px;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-family:inherit;text-align:left}
+.expbtn b{display:block;font-size:15px}
+.expbtn small{font-size:12px;color:var(--ink2)}
+.next{display:flex;align-items:center;gap:8px;min-height:28px;padding:0 4px;font-size:14px}
 </style>
 </head>
 <body>
@@ -144,6 +191,58 @@ a{color:var(--accent)}
   </div>
 </section>
 
+<!-- Réglages (appli iPhone : moteur du simulateur) -->
+<section class="view" id="v-set" aria-label="Réglages">
+  <div class="top">
+    <div style="min-width:0"><h1>O'Tacquet</h1><div class="sub" id="r-src">Vent en attente</div></div>
+    <div style="display:flex;gap:6px;flex-shrink:0">
+      <button class="ibtn" data-act="refresh" aria-label="Recharger la météo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg></button>
+      <button class="ibtn" id="r-edit" data-act="edit" aria-pressed="false" aria-label="Corriger le vent"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"></path></svg></button>
+    </div>
+  </div>
+  <div class="scroll">
+    <div class="card" id="r-editbox" hidden style="border-color:var(--accent);display:flex;flex-direction:column;gap:6px">
+      <div class="erow"><span>Vent réel (nœuds)</span><span class="pas"><button data-act="etws-" aria-label="Moins un nœud">−</button><b id="r-etws">–</b><button data-act="etws+" aria-label="Plus un nœud">+</button></span></div>
+      <div class="erow"><span>Vient du</span><span class="pas"><button data-act="etwd-" aria-label="Moins 5 degrés">−</button><b id="r-etwd">–</b><button data-act="etwd+" aria-label="Plus 5 degrés">+</button></span></div>
+      <div class="erow"><span class="note" id="r-enote"></span><button class="lien" id="r-eback" data-act="eback" hidden>Revenir à la météo</button></div>
+    </div>
+    <div class="card cap">
+      <svg id="r-rose" width="124" height="124" viewBox="0 0 120 120" role="img" aria-label="Angle du vent inconnu" style="flex-shrink:0" data-leg="r-rose">
+        <circle cx="60" cy="60" r="58" fill="#2B3A42"></circle>
+        <circle cx="60" cy="60" r="55" fill="none" stroke="#7F98A2" stroke-opacity="0.55" stroke-width="1"></circle>
+        <g stroke="#7F98A2" stroke-opacity="0.7" stroke-width="1.2"><line x1="60" y1="5" x2="60" y2="10"></line><line x1="87.5" y1="12.4" x2="85" y2="16.7"></line><line x1="107.6" y1="32.5" x2="103.3" y2="35"></line><line x1="115" y1="60" x2="110" y2="60"></line><line x1="107.6" y1="87.5" x2="103.3" y2="85"></line><line x1="87.5" y1="107.6" x2="85" y2="103.3"></line><line x1="60" y1="115" x2="60" y2="110"></line><line x1="32.5" y1="107.6" x2="35" y2="103.3"></line><line x1="12.4" y1="87.5" x2="16.7" y2="85"></line><line x1="5" y1="60" x2="10" y2="60"></line><line x1="12.4" y1="32.5" x2="16.7" y2="35"></line><line x1="32.5" y1="12.4" x2="35" y2="16.7"></line></g>
+        <path d="M60 60 L28.4 15 A55 55 0 0 1 91.6 15 Z" fill="#F06C5C" fill-opacity="0.22"></path>
+        <path d="M60 36.5 Q69.5 60 66.2 77.9 L53.8 77.9 Q50.5 60 60 36.5 Z" fill="#E8EEF0" fill-opacity="0.9"></path>
+        <g id="r-tw" style="display:none"><line x1="60" y1="5" x2="60" y2="24" stroke="#6CC6E6" stroke-width="3.5" stroke-linecap="round"></line><polygon points="60,31 54.5,22 65.5,22" fill="#6CC6E6"></polygon></g>
+        <g id="r-aw" style="display:none"><line x1="60" y1="5" x2="60" y2="18" stroke="#F2B544" stroke-width="3.5" stroke-linecap="round"></line><polygon points="60,25 54.5,16 65.5,16" fill="#F2B544"></polygon></g>
+      </svg>
+      <div class="cb">
+        <div style="display:flex;flex-direction:column">
+          <span class="t" id="r-hdgsrc">Cap</span>
+          <span class="hv" id="r-hdg">–</span>
+          <span class="t" id="r-twa"></span>
+          <span class="t" id="r-aw-txt"></span>
+          <button class="lien" id="r-hdgback" data-act="hdgback" hidden>Revenir au cap mesuré</button>
+        </div>
+        <div class="hb"><button data-act="hdg-10" aria-label="Cap moins 10 degrés">−10</button><button data-act="hdg-1" aria-label="Cap moins un degré">−1</button><button data-act="hdg+1" aria-label="Cap plus un degré">+1</button><button data-act="hdg+10" aria-label="Cap plus 10 degrés">+10</button></div>
+      </div>
+    </div>
+    <div class="all" id="r-all" role="list" aria-label="Allures"></div>
+    <div class="card" style="padding:8px 14px;display:flex;flex-direction:column;gap:4px">
+      <div class="vit"><div data-leg="r-vm"><span id="r-vmlab">Vitesse réelle</span><b id="r-vm">–</b></div><div data-leg="r-vc"><span>Vitesse cible</span><b class="cible" id="r-vc">–</b></div></div>
+      <span class="note" id="r-phi" data-leg="r-phi"></span>
+      <span class="note" id="r-calc" hidden>Calcul du modèle…</span>
+    </div>
+    <div class="card" style="padding:6px 14px 4px">
+      <div class="rhead"><span class="label">Réglages</span><button data-act="auto">Tout en auto</button></div>
+      <div id="r-list"></div>
+    </div>
+    <button class="expbtn" id="r-exp" data-act="expert" aria-expanded="false" aria-controls="r-expert"><span><b>Mode expert</b><small>pataras, hale-bas, chariots de génois</small></span><span id="r-exparrow" style="font-size:18px;color:var(--ink2)">▾</span></button>
+    <div class="card" id="r-expert" hidden style="padding:4px 14px" data-leg="r-expert"></div>
+    <div class="next" id="r-next" hidden data-leg="r-next"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color:var(--accent);flex-shrink:0"><path d="M12 5v14M5 12l7 7 7-7"></path></svg><span><b>Prochain changement :</b> <span id="r-nexttxt"></span></span></div>
+  </div>
+</section>
+
 <!-- Journal -->
 <section class="view" id="v-log" aria-label="Journal de bord">
   <div class="top"><div><h1>Journal de bord</h1><div class="sub">Traces gardées sur ce téléphone</div></div></div>
@@ -162,6 +261,8 @@ a{color:var(--accent)}
 
 <div class="legend" id="legend" role="tooltip" hidden><b id="leg-t"></b><span id="leg-p"></span></div>
 <nav class="tabs" aria-label="Modes">
+  <button class="tab" id="t-set" hidden>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>Réglages</button>
   <button class="tab" id="t-rec" aria-current="page">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>Trace</button>
   <button class="tab" id="t-log">
@@ -173,6 +274,7 @@ a{color:var(--accent)}
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="trace.js"></script>
 <script src="nmea.js"></script>
+<script src="reglages.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -403,11 +505,13 @@ $('b-back').onclick = () => openLog();
 
 /* ---------- Onglets ---------- */
 function tab(w) {
+  $('v-set').classList.toggle('on', w === 'set'); $('t-set').setAttribute('aria-current', w === 'set' ? 'page' : 'false');
   $('v-rec').classList.toggle('on', w === 'rec'); $('v-log').classList.toggle('on', w === 'log'); $('v-trip').classList.toggle('on', w === 'trip');
   $('t-rec').setAttribute('aria-current', w === 'rec' ? 'page' : 'false'); $('t-log').setAttribute('aria-current', w === 'log' || w === 'trip' ? 'page' : 'false');
   if (w === 'rec' && map) setTimeout(() => map.invalidateSize(), 0);
 }
 $('t-rec').onclick = () => tab('rec');
+$('t-set').onclick = () => { tab('set'); window.Reglages && window.Reglages.render(); };
 $('t-log').onclick = () => openLog();
 
 /* ---------- Démarrage : reprise d'un enregistrement interrompu ---------- */
@@ -443,6 +547,9 @@ if (NATIVE) {
   $('bg-chip').onclick = () => { const p = $('bg-panel'); p.hidden = !p.hidden; $('bg-chip').setAttribute('aria-expanded', String(!p.hidden)); };
   bgConnect();
   setInterval(showIns, 1000);
+  const sm = document.createElement('script'); sm.src = 'moteur/moteur.js';
+  sm.onload = () => { if (window.Reglages && window.Reglages.start({ bord, last: () => last, visible: () => $('v-set').classList.contains('on') })) $('t-set').hidden = false; };
+  document.head.appendChild(sm);
 }
 /* ---------- Écran Trace : mesures repliables, légende par appui long ---------- */
 const LEGENDES = {
@@ -457,6 +564,12 @@ const LEGENDES = {
   'i-aw': ['Vent apparent', "Vent mesuré en tête de mât, celui que reçoivent les voiles : force en nœuds, angle compté depuis l'étrave."],
   'i-hdg': ['Cap', "Direction vers laquelle pointe l'étrave, donnée par le compas du B&G et corrigée de la déclinaison : cap vrai, comparable à la route fond."],
   'i-heel': ['Gîte', "Inclinaison du bateau sur le côté, mesurée par le B&G. À quai, elle indique déjà 3 à 4° : étalonnage à faire sur le Vulcan."],
+  'r-rose': ['Vent sur le bateau', "Le bateau vu de dessus, étrave en haut. Flèche bleue : vent réel. Flèche jaune : vent apparent, celui que reçoivent les voiles. Secteur rouge : trop près du vent (moins de 40° du vent réel)."],
+  'r-vm': ['Vitesse réelle', "Vitesse surface lue sur le loch du B&G ; sans B&G, vitesse fond du GPS de l'iPhone (courant compris)."],
+  'r-vc': ['Vitesse cible', "Vitesse que prévoit le modèle du simulateur pour ce vent et cet angle, voiles réglées comme conseillé, dans la mer formée par ce vent. Au près, le modèle est encore 20 à 45 % trop rapide par rapport à tes repères (4,5 nœuds par 15 nœuds) : prends-la comme un ordre de grandeur."],
+  'r-phi': ['Gîte et barre', "Gîte et angle de barre que prévoit le modèle avec ces réglages ; entre parenthèses, la gîte mesurée par le B&G."],
+  'r-expert': ['Mode expert', "Pour chaque réglage, la perte de vitesse si on le met au pire, les autres restant au mieux. Sous 0,05 nœud, il est indifférent. Le modèle conseille encore le pataras toujours relâché : écart connu, à corriger."],
+  'r-next': ['Prochain changement', "Cherché en faisant forcir le vent nœud par nœud, à l'angle actuel. Le modèle conseille encore le ris trop tard : il ignore la barre et les rafales, alors que tu prends un ris vers 20 nœuds."],
   'i-depth': ['Fond', "Hauteur d'eau sous la sonde du sondeur, sans correction (aucun décalage réglé sur le Vulcan). Sous la quille, avec 1,87 m de tirant d'eau, il y en a moins."]
 };
 (() => {
@@ -472,8 +585,9 @@ const LEGENDES = {
   fold.onclick = () => setFold(!panel.classList.contains('min'));
   let timer = null;
   const hide = () => { clearTimeout(timer); timer = null; leg.hidden = true; };
-  panel.addEventListener('pointerdown', e => {
-    const cell = e.target.closest('.cell'), b = cell && cell.querySelector('b'), t = b && LEGENDES[b.id];
+  document.addEventListener('pointerdown', e => {
+    const cell = e.target.closest('[data-leg], .cell'), b = cell && !cell.dataset.leg && cell.querySelector('b');
+    const t = cell && LEGENDES[cell.dataset.leg || (b && b.id)];
     if (!t) return;
     hide();
     timer = setTimeout(() => {
@@ -482,8 +596,9 @@ const LEGENDES = {
       leg.style.top = Math.max(8, r.top - leg.offsetHeight - 8) + 'px';
     }, 400);
   });
-  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) panel.addEventListener(ev, hide);
-  panel.addEventListener('contextmenu', e => { if (e.target.closest('.cell')) e.preventDefault(); });
+  for (const ev of ['pointerup', 'pointercancel']) document.addEventListener(ev, hide);
+  panel.addEventListener('pointerleave', hide);
+  document.addEventListener('contextmenu', e => { if (e.target.closest('[data-leg], .cell')) e.preventDefault(); });
 })();
 window.__app = { DB, onPos: p => onPos(p), state: () => rec.state, stats: () => tr && tr.stats() };
 </script>
