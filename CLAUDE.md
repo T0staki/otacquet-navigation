@@ -24,12 +24,17 @@ Appli de navigation et journal de bord d'O'Tacquet (Bavaria 31 Cruiser de Jéré
 - À quai : eau 37,1 °C, assiette +6,3° et gîte −3,1° suspectes (étalonnages à faire sur le Vulcan) ; loch 3,6 % sous le GPS en cumul.
 - Connecté au point d'accès du Vulcan, l'iPhone perd internet : piste = le Vulcan rejoint le partage de connexion de l'iPhone (adresse 172.20.10.x), à essayer.
 
-## Où en est le projet (25/10/2026)
+## Pilotage
+Feuille de route, décisions et passations : `../simulateur-voile_v0/docs/pilotage/` (dépôt privé, cloné à côté). Commencer chaque session par la passation la plus récente.
+
+## Où en est le projet (26/10/2026)
 - V0.1 web : trace GPS, carte, journal, cumul de saison, GPX.
 - Carte (25/10) : carte littorale SHOM/IGN de la Géoplateforme (`GEOGRAPHICALGRIDSYSTEMS.COASTALMAPS`, sans clé, niveaux 6 à 16, « non destinée à la navigation », licence non vérifiée), OSM dessous hors couverture ; OpenSeaMap retiré (doublon, secteurs de feux encombrants). Jérémie n'est « pas convaincu encore » : à retravailler.
 - V0.2 : appli iPhone (Capacitor) avec lecture du B&G, instruments, échantillon toutes les 5 s pendant l'enregistrement, export CSV. Compilée et installée sur l'iPhone 15 Pro le 25/10/2026 : GPS natif vérifié (autorisation, positions chaque seconde) ; lecture du B&G à vérifier à bord.
 - V0.2.3 : onglet « En mer » renommé « Trace » (demande de Jérémie), mesures compactes et repliables, légende par appui long sur chaque mesure.
 - V0.3 (25/10) : écran Réglages (maquette 3) : vent du B&G, sinon Open-Meteo corrigeable ; cap du B&G, sinon route fond, ou choisi aux boutons ; moteur `PHY` (optimum, sensibilités, prochain ris ou génois roulé). Vent lissé (≈ 6 s) et arrondi (1 nd, 5°) pour le calcul. Pas encore fait : mode nuit, plein écran. Testé au navigateur avec un faux B&G ; à essayer à bord.
 - Plein écran 3D (25/10) : bouton dans l'en-tête de Réglages ; `outillage/bateau.py` (lancé par `moteur.sh`) fait de `simulateur.html` une vue seule (`www/moteur/bateau.html`, Three.js local dans `www/moteur/three/`, ignorés par Git) ; l'appli lui envoie TWS, TWD, TWA (pilote du simulateur en mode vent, bateau posé au cap TWD − TWA) et le ris ou le génois choisis ; réglages auto du simulateur. Informations par-dessus : TWS · TWA, gîte (B&G, sinon modèle), STW, max théorique et écart. La vue 3D n'est chargée que pendant l'affichage.
+- Réglages (25/10) : curseurs modifiables, toucher = manuel ; « au mieux » (tout en auto) et cadre « Avec tes réglages » (vitesse, gîte, barre) séparés. Icône A22 (`design/icone/`).
+- Diagnostic du rendu 3D : `DIAG3D = true` dans `www/reglages.js` (vue avec `#diag=1`, essais chronométrés dans `outillage/bateau.py`). Résultats iPhone du 26/10 dans la passation.
 - Suite, dans l'ordre validé par Jérémie : journal enrichi ; partage avec les proches (Supabase envisagé ; Anne-Laure sur Android suit en web).
 - Documents de conception : `docs/notes/version-navigation.md` du dépôt privé du simulateur (`T0staki/simulateur-voile_v0`, avec son propre CLAUDE.md : préférences de Jérémie, contexte, historique complet). Pour travailler sur les deux, cloner les deux dépôts côte à côte dans un même dossier et lancer Claude Code dans ce dossier.

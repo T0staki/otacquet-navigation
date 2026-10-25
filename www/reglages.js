@@ -259,9 +259,10 @@
   }
 
   /* ---------- Plein écran : le bateau en 3D, vue du simulateur pilotée par le vent du moment ---------- */
+  const DIAG3D = false;   // true : version de mesure du rendu 3D (essais de 8 s chronométrés, résultats à l’écran et dans le journal de l’appli), voir outillage/bateau.py
   let plein = null, envoi = '';
   function ouvrirPlein() {
-    const c = conditions(), q = ['boat=b31', 'go=1', 'live=0', 'view=chase'];
+    const c = conditions(), q = ['boat=b31', 'go=1', 'live=0', 'view=chase'].concat(DIAG3D ? ['diag=1'] : []);
     if (c.tws != null) q.push('tws=' + Math.max(3, Math.round(c.tws)));
     if (c.twd != null) q.push('twd=' + ((Math.round(c.twd / 5) * 5) % 360));
     $('v-boat').hidden = false; $('pl-load').hidden = false; $('pl-info').hidden = false; envoi = '';
@@ -288,6 +289,7 @@
     const sig = JSON.stringify(m);
     if (sig !== envoi && plein.contentWindow) { plein.contentWindow.postMessage(m, '*'); envoi = sig; }
   }
+  window.addEventListener('message', e => { if (plein && e.source === plein.contentWindow && e.data && e.data.ot === 'diag') console.log('DIAG3D ' + JSON.stringify(e.data)); });
   window.addEventListener('message', e => { if (plein && e.source === plein.contentWindow && e.data && e.data.ot === 'bateau-pret') { $('pl-load').hidden = true; envoi = ''; pleinMaj(); } });
 
   function prendre(k, v) {

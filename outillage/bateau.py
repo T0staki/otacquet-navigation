@@ -26,6 +26,43 @@ window.addEventListener('message',e=>{const d=e.data;if(!d||d.ot!=='bateau')retu
   if(d.furl!=null){FINE.furl=d.furl;setFineMan('furl',true);}else if(FINE.man.furl)setFineMan('furl',false);
 });
 try{parent.postMessage({ot:'bateau-pret'},'*');}catch(e){}
+/* Diagnostic du rendu (#diag=1, version de mesure de l'appli) : chronomètre chaque étape d'une image et enchaîne des essais de 8 s
+   (ombres, transparence de l'eau, interface masquée, résolution). Ne change ni les calculs ni le dessin en dehors des essais. */
+if(HASH.diag==='1'){(()=>{
+  const T={},add=(k,t)=>{T[k]=(T[k]||0)+t;};
+  const wrap=(nom,get,set)=>{const f=get();set(function(...a){const t=performance.now();try{return f.apply(this,a);}finally{add(nom,performance.now()-t);}});};
+  let sansUI=false;const muet=(get,set)=>{const f=get();set(function(...a){if(!sansUI)return f.apply(this,a);});};
+  muet(()=>ui,f=>ui=f);muet(()=>drawCompass,f=>drawCompass=f);muet(()=>MATH.render,f=>MATH.render=f);
+  wrap('image',()=>frame,f=>frame=f);wrap('physique',()=>step,f=>step=f);wrap('réglages',()=>updateFine,f=>updateFine=f);
+  wrap('voiles',()=>updateSail,f=>updateSail=f);wrap('bouts',()=>updateRopes,f=>updateRopes=f);wrap('gréement',()=>updateRigging,f=>updateRigging=f);
+  wrap('étai et mât',()=>updateStay,f=>updateStay=f);wrap('écume',()=>stepFoam,f=>stepFoam=f);wrap('eau sur le pont',()=>DW.render,f=>DW.render=f);
+  wrap('interface',()=>ui,f=>ui=f);wrap('compas',()=>drawCompass,f=>drawCompass=f);wrap('équations',()=>MATH.render,f=>MATH.render=f);
+  wrap('reflet',()=>renderReflection,f=>renderReflection=f);wrap('sous l’eau',()=>uwPass,f=>uwPass=f);wrap('embruns',()=>sprayUpdate,f=>sprayUpdate=f);
+  const rr=renderer.render.bind(renderer);renderer.render=function(sc,c){const t=performance.now();rr(sc,c);add(renderer.getRenderTarget()?'rendus en texture':'rendu principal (ombres comprises)',performance.now()-t);};
+  // diagnostic n° 2 : la physique découpée en ses parties
+  for(const k of ['aero','hydro','setup','rawOf','skAt','helmFor','heelFor'])wrap('physique · '+k,()=>PHY[k],f=>PHY[k]=f);
+  wrap('physique · vagues (waterH)',()=>waterH,f=>waterH=f);wrap('physique · placement',()=>placeBoat,f=>placeBoat=f);
+  wrap('physique · réglages auto',()=>autoStep,f=>autoStep=f);wrap('physique · rafales',()=>gustNoise,f=>gustNoise=f);wrap('physique · eau sur le pont',()=>DW.update,f=>DW.update=f);
+  const box=document.createElement('pre');box.style.cssText='position:fixed;left:6px;right:6px;top:100px;margin:0;padding:5px 7px;background:rgba(0,0,0,.65);color:#fff;font:9px/1.25 ui-monospace,Menlo,monospace;z-index:99;white-space:pre-wrap;pointer-events:none';document.body.appendChild(box);
+  const ratio0=renderer.getPixelRatio(),pr=r=>{renderer.setPixelRatio(r);window.dispatchEvent(new Event('resize'));};
+  const raz=()=>{renderer.shadowMap.autoUpdate=true;UW.ok=true;sansUI=false;ocean.visible=true;boat.visible=true;if(renderer.getPixelRatio()!==ratio0)pr(ratio0);};
+  // la référence revient entre chaque essai : l'échauffement du téléphone se lit sur elle, l'effet d'un essai se compare à la référence qui l'entoure
+  const R=['référence',()=>{}],E=[['sans ombres',()=>{renderer.shadowMap.autoUpdate=false;}],['sans transparence de l’eau',()=>{UW.ok=false;U.uUWOn.value=0;}],
+    ['sans interface masquée',()=>{sansUI=true;}],['mer masquée',()=>{ocean.visible=false;}],['bateau masqué',()=>{boat.visible=false;}],['résolution ×2',()=>{pr(2);}]];
+  const ESSAIS=[R];for(const e of E)ESSAIS.push(e,R);
+  const res=[];let i=-1;
+  const mesurer=(nom,suite)=>{for(const k in T)delete T[k];renderer.info.autoReset=false;renderer.info.reset();let n=0,t0=performance.now();
+    const tick=()=>{n++;if(performance.now()-t0<5000)requestAnimationFrame(tick);else{const ms=(performance.now()-t0)/n,o={essai:nom,ips:+(1000/ms).toFixed(1),ms_image:+ms.toFixed(1),appels:Math.round(renderer.info.render.calls/n),pixels:renderer.getPixelRatio()+' × '+innerWidth+'×'+innerHeight,etapes_ms:{}};
+      for(const k of Object.keys(T).sort((a,b)=>T[b]-T[a]))o.etapes_ms[k]=+(T[k]/n).toFixed(2);renderer.info.autoReset=true;suite(o);}};requestAnimationFrame(tick);};
+  const ligne=o=>o.essai+' : '+o.ips+' i/s, '+o.ms_image+' ms, '+o.appels+' appels';
+  const suivant=()=>{raz();i++;if(i>=ESSAIS.length){
+      const phys=res.filter(o=>o.essai==='référence').map(o=>Object.entries(o.etapes_ms).filter(([k])=>k.startsWith('physique')).slice(0,5).map(([k,v])=>k.replace('physique · ','')+' '+v).join(' · '));
+      box.textContent='Diagnostic n° 2 terminé (fais une capture)\n'+res.map(ligne).join('\n')+'\nPhysique (ms), 1re et dernière référence :\n '+phys[0]+'\n '+phys[phys.length-1];
+      try{parent.postMessage({ot:'diag',fin:true,res},'*');}catch(e){}return;}
+    const [nom,f]=ESSAIS[i];f();box.textContent='Diagnostic n° 2 · '+(i+1)+'/'+ESSAIS.length+' : '+nom+'…\n'+res.map(ligne).join('\n');
+    setTimeout(()=>mesurer(nom,o=>{res.push(o);try{parent.postMessage({ot:'diag',o},'*');}catch(e){}suivant();}),1500);};
+  setTimeout(suivant,8000);   // laisser le bateau prendre son allure et la mer se former
+})();}
 """
 k = 'requestAnimationFrame(frame);\n};\n</script>'
 i = s.rfind(k); assert i > 0
