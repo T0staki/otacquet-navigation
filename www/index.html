@@ -121,13 +121,20 @@ a{color:var(--accent)}
 .imp{font-size:13px;font-weight:600;color:var(--accent);white-space:nowrap}
 .pill{flex-shrink:0;min-width:64px;height:28px;border-radius:14px;border:1px solid var(--ink2);background:transparent;color:var(--ink);font-family:inherit;font-size:12px;font-weight:600}
 .pill.on{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
-.sl{display:flex;align-items:center;gap:8px;height:16px}
-.sl>span{width:62px;font-size:11px;color:var(--ink2)}
-.sl>span:last-child{text-align:right}
-.sl .tr{flex:1;position:relative;height:16px;margin:0 7px}
-.sl .tr::before{content:"";position:absolute;left:-7px;right:-7px;top:7px;height:3px;border-radius:2px;background:var(--line)}
-.sl .tr i{position:absolute;top:1px;width:14px;height:14px;box-sizing:border-box;border-radius:7px;border:3px solid var(--ink2);background:var(--card)}
-.sl .tr i.on{border-color:var(--accent);background:var(--accent)}
+.cur{display:flex;flex-direction:column}
+.cur input[type=range]{width:100%;margin:4px 0 0;height:28px;accent-color:var(--accent)}
+.rg.man .cur input[type=range]{accent-color:var(--ink)}
+.cur input[type=range]:disabled{opacity:.4}
+.ends{display:flex;justify-content:space-between;font-size:11px;color:var(--ink2)}
+.fdots{position:relative;height:16px;margin:0 12px}
+.fdots button{position:absolute;top:-6px;width:28px;height:28px;margin-left:-14px;border:0;background:transparent;padding:0;display:flex;align-items:center;justify-content:center}
+.fdots i{display:block;width:11px;height:11px;border-radius:50%;border:2px solid var(--ink2);background:var(--card);box-sizing:border-box}
+.fdots i.on{background:var(--accent);border-color:var(--accent)}
+.rg.man .fdots i.on{background:var(--ink);border-color:var(--ink)}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:4px}
+.seg button{height:34px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--ink);font-family:inherit;font-weight:600;font-size:15px}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.rg.man .seg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .rhead{display:flex;justify-content:space-between;align-items:center;height:30px}
 .rhead button{height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);font-family:inherit;font-size:13px;font-weight:600}
 .expbtn{display:flex;align-items:center;justify-content:space-between;min-height:46px;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-family:inherit;text-align:left}
@@ -233,6 +240,7 @@ a{color:var(--accent)}
     <div class="card" style="padding:8px 14px;display:flex;flex-direction:column;gap:4px">
       <div class="vit"><div data-leg="r-vm"><span id="r-vmlab">Vitesse réelle</span><b id="r-vm">–</b></div><div data-leg="r-vc"><span>Vitesse max théorique</span><b class="cible" id="r-vc">–</b></div></div>
       <span class="note" id="r-phi" data-leg="r-phi"></span>
+      <span class="note" id="r-avec" hidden data-leg="r-avec"></span>
       <span class="note" id="r-calc" hidden>Calcul du modèle…</span>
     </div>
     <div class="card" style="padding:6px 14px 4px">
@@ -572,8 +580,9 @@ const LEGENDES = {
   'i-heel': ['Gîte', "Inclinaison du bateau sur le côté, mesurée par le B&G. À quai, elle indique déjà 3 à 4° : étalonnage à faire sur le Vulcan."],
   'r-rose': ['Vent sur le bateau', "Le bateau vu de dessus, étrave en haut. Flèche bleue : vent réel (TWA). Flèche jaune : vent apparent (AWA), celui que reçoivent les voiles. Secteur rouge : trop près du vent (moins de 40° du vent réel)."],
   'r-vm': ['Vitesse réelle', "STW (Speed Through Water) : vitesse surface lue sur le loch du B&G. Sans B&G : SOG (Speed Over Ground), vitesse fond du GPS de l'iPhone, courant compris."],
-  'r-vc': ['Vitesse max théorique', "Vitesse que prévoit le modèle du simulateur pour ce vent et cet angle, voiles réglées comme conseillé, dans la mer formée par ce vent. Au près, le modèle est encore 20 à 45 % trop rapide par rapport à tes repères (4,5 nœuds par 15 nœuds) : prends-la comme un ordre de grandeur."],
+  'r-vc': ['Vitesse max théorique', "Vitesse que prévoit le modèle du simulateur pour ce vent et cet angle, voiles réglées comme conseillé, dans la mer formée par ce vent. Si tu as choisi à la main le ris, le génois, le pataras ou les chariots de génois, elle est calculée avec ton choix. Au près, le modèle est encore 20 à 45 % trop rapide par rapport à tes repères (4,5 nœuds par 15 nœuds) : prends-la comme un ordre de grandeur."],
   'r-phi': ['Gîte et barre', "Gîte et angle de barre que prévoit le modèle avec ces réglages ; entre parenthèses, la gîte mesurée par le B&G."],
+  'r-avec': ['Avec tes réglages', "Vitesse que prévoit le modèle avec les écoutes, le chariot de GV et le hale-bas que tu as mis à la main, les autres réglages restant ceux du conseil. L'écart avec la vitesse max théorique dit ce que tes réglages coûtent selon le modèle."],
   'r-expert': ['Mode expert', "Pour chaque réglage, la perte de vitesse si on le met au pire, les autres restant au mieux. Sous 0,05 nœud, il est indifférent. Le modèle conseille encore le pataras toujours relâché : écart connu, à corriger."],
   'r-next': ['Prochain changement', "Cherché en faisant forcir le vent nœud par nœud, à l'angle actuel. Le modèle conseille encore le ris trop tard : il ignore la barre et les rafales, alors que tu prends un ris vers 20 nœuds."],
   'i-depth': ['Profondeur', "Hauteur d'eau sous la sonde du sondeur, sans correction (aucun décalage réglé sur le Vulcan). Sous la quille, avec 1,87 m de tirant d'eau, il y en a moins."]

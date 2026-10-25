@@ -12,7 +12,10 @@
   const ALLURES = [['Près', 0, 60], ['Bon plein', 60, 80], ['Travers', 80, 100], ['Largue', 100, 135], ['Grand largue', 135, 165], ['Vent arrière', 165, 181]];
   const VALS = { bs: [0, 25, 50, 75, 100], car: [0, 25, 50, 75, 100], vang: [0, 25, 50, 75, 100], trav: [-100, -50, 0, 50, 100] };
   let PHY = null, ctx = null, lisse = null, dernier = null, enCalcul = false;
-  const S = { hdgSet: null, man: {}, reef: 0, furl: 0, expert: false, edit: false, meteo: null, meteoErr: '', corr: null };
+  // man : réglages repris à la main ; val : leur valeur en unités de curseur (écoutes 0-100, génois 0-80 % roulé, chariot −100-100, ris 0-2) ;
+  // pose : valeur prise en compte par le moteur pour le ris, le génois, le pataras et les chariots de génois (au relâcher du curseur)
+  const S = { hdgSet: null, man: {}, val: {}, pose: {}, expert: false, edit: false, meteo: null, meteoErr: '', corr: null };
+  const touche = {};
   const cache = new Map();
 
   /* ---------- Conditions : vent, cap, vitesse mesurée ---------- */
@@ -41,14 +44,18 @@
   }
 
   /* ---------- Moteur ---------- */
+  // ris, génois, pataras et chariots de génois choisis à la main : l'optimum se calcule autour d'eux
   function fixes() {
     const fx = {};
-    if (S.man.reef) fx.reef = S.reef;
-    if (S.man.furl) fx.furl = PHY.FURL_MARKS[S.furl];
+    if (S.man.reef && S.pose.reef != null) fx.reef = S.pose.reef;
+    if (S.man.furl && S.pose.furl != null) fx.furl = S.pose.furl / 100;
+    if (S.man.bs && S.pose.bs != null) fx.bs = S.pose.bs;
+    if (S.man.car && S.pose.car != null) fx.car = S.pose.car;
     return fx;
   }
+  const cle = (tws, A) => { const fx = fixes(); return [tws, A, fx.reef, fx.furl, fx.bs, fx.car].join('|'); };
   function calc(tws, A) {
-    const fx = fixes(), key = [tws, A, fx.reef, fx.furl].join('|');
+    const fx = fixes(), key = cle(tws, A);
     if (cache.has(key)) return cache.get(key);
     const T = tws * KN, o = PHY.optimum(T, A, Object.keys(fx).length ? fx : null);
     const s = PHY.steady(T, A, o.c, o, true), sens = {};
@@ -66,7 +73,8 @@
   function prochain(r) {
     if (S.man.reef && S.man.furl) return '';
     for (let t = Math.floor(r.tws) + 1; t <= r.tws + 10; t++) {
-      const fx = Object.assign({ bs: r.c.bs, car: r.c.car }, fixes()), o = PHY.optimum(t * KN, r.A, fx);
+      const fx = Object.assign({ bs: r.c.bs, car: r.c.car }, fixes()); if (fx.furl === 0) delete fx.furl;
+      const o = PHY.optimum(t * KN, r.A, fx);
       if (o.c.reef > r.c.reef) return (o.c.reef === 1 ? '1 ris' : o.c.reef + ' ris') + ' vers ' + t + ' nds établis';
       if (o.c.furl > r.c.furl + 1e-6) return 'génois roulé ' + Math.round(o.c.furl * 100) + ' % vers ' + t + ' nds établis';
     }
@@ -88,15 +96,78 @@
   }
 
   /* ---------- Affichage ---------- */
-  const jibTxt = j => j >= 37.5 ? 'choquée au maximum' : j <= PHY.Y.jibMin + 0.5 ? 'bordée à fond' : 'génois à ' + Math.round(j) + '° de l’axe';
-  const travTxt = v => v === 0 ? 'au milieu' : v === -100 ? 'tout au vent' : v === 100 ? 'tout sous le vent' : v < 0 ? 'à mi-course au vent' : 'à mi-course sous le vent';
-  const EXPERT = {
-    bs: { name: 'Pataras', lo: 'relâché', hi: 'à fond', val: v => v === 0 ? 'relâché' : v === 100 ? 'à fond' : v + ' %' },
-    car: { name: 'Chariots de génois', lo: 'avant', hi: 'arrière', val: v => v === 0 ? 'tout à l’avant' : v === 100 ? 'tout à l’arrière' : v === 50 ? 'mi-rail' : v + ' % du rail' },
-    vang: { name: 'Hale-bas', lo: 'choqué', hi: 'étarqué', val: v => v === 0 ? 'choqué' : v === 100 ? 'étarqué' : v === 50 ? 'mi-tension' : v === 25 ? 'peu repris' : 'bien repris' }
+  /* ---------- Réglages : curseurs (unités de curseur ↔ moteur) ---------- */
+  const jm = () => PHY.Y.jibMin;
+  const VERS = {   // valeur du moteur → curseur
+    main: c => (c.mainSet - 2) / 0.83, jib: c => (c.jibSet - jm()) / (38 - jm()) * 100, furl: c => c.furl * 100,
+    trav: c => c.trav, reef: c => c.reef, bs: c => c.bs, car: c => c.car, vang: c => c.vang
   };
-  const curseur = (pos, lo, hi, plein) => '<div class="sl"><span>' + lo + '</span><div class="tr"><i class="' + (plein ? 'on' : '') + '" style="left:calc(' + Math.max(0, Math.min(100, pos)).toFixed(0) + '% - 7px)"></i></div><span>' + hi + '</span></div>';
-  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const TXT = {
+    main: v => 'bôme à ' + Math.round(2 + v * 0.83) + '° de l’axe',
+    jib: v => { const j = jm() + v / 100 * (38 - jm()); return j >= 37.5 ? 'choquée au maximum' : j <= jm() + 0.5 ? 'bordée à fond' : 'génois à ' + Math.round(j) + '° de l’axe'; },
+    furl: v => { v = Math.round(v); const m = [20, 35, 50].indexOf(v); return v === 0 ? 'déroulé' : 'roulé ' + v + ' %' + (m >= 0 ? ' (' + (m === 0 ? '1er' : (m + 1) + 'e') + ' repère)' : ''); },
+    trav: v => Math.abs(v) < 8 ? 'au milieu' : v <= -92 ? 'tout au vent' : v >= 92 ? 'tout sous le vent' : 'à ' + Math.round(Math.abs(v)) + ' % ' + (v < 0 ? 'au vent' : 'sous le vent'),
+    reef: v => v === 0 ? 'aucun, GV pleine' : v === 1 ? '1 ris' : '2 ris',
+    bs: v => v < 3 ? 'relâché' : v > 97 ? 'à fond' : Math.round(v) + ' %',
+    car: v => v < 3 ? 'tout à l’avant' : v > 97 ? 'tout à l’arrière' : Math.abs(v - 50) < 3 ? 'mi-rail' : Math.round(v) + ' % du rail',
+    vang: v => v < 10 ? 'choqué' : v < 40 ? 'peu repris' : v < 60 ? 'mi-tension' : v < 90 ? 'bien repris' : 'étarqué'
+  };
+  const LIGNES = [
+    { k: 'main', name: 'Écoute de GV', min: 0, max: 100, lo: 'bordée', hi: 'choquée' },
+    { k: 'jib', name: 'Écoute de génois', min: 0, max: 100, lo: 'bordée', hi: 'choquée' },
+    { k: 'furl', name: 'Génois', min: 0, max: 80, lo: 'déroulé', hi: 'roulé 80 %', marks: [20, 35, 50] },
+    { k: 'trav', name: 'Chariot de GV', min: -100, max: 100, lo: 'au vent', hi: 'sous le vent', marks: [0] },
+    { k: 'reef', name: 'Ris', seg: [0, 1, 2] }
+  ];
+  const EXPERT = [
+    { k: 'bs', name: 'Pataras', min: 0, max: 100, lo: 'relâché', hi: 'à fond' },
+    { k: 'car', name: 'Chariots de génois', min: 0, max: 100, lo: 'avant', hi: 'arrière' },
+    { k: 'vang', name: 'Hale-bas', min: 0, max: 100, lo: 'choqué', hi: 'étarqué' }
+  ];
+  const POSE = { reef: 1, furl: 1, bs: 1, car: 1 };   // réglages qui relancent l'optimum
+  function ligneHTML(L, expert) {
+    let h = '<div class="rg" id="rg-' + L.k + '"><div class="rh"><span class="rn">' + L.name + ' <small id="rv-' + L.k + '"></small></span>' +
+      (expert ? '<span class="imp" id="ri-' + L.k + '"></span>' : '') +
+      '<button class="pill on" id="rp-' + L.k + '" data-act="man-' + L.k + '">auto</button></div>';
+    if (L.seg) h += '<span class="seg" role="group" aria-label="' + L.name + '">' + L.seg.map(n => '<button data-act="' + L.k + '=' + n + '" id="rs-' + L.k + n + '">' + n + '</button>').join('') + '</span>';
+    else {
+      h += '<div class="cur"><input type="range" id="rr-' + L.k + '" data-k="' + L.k + '" min="' + L.min + '" max="' + L.max + '" step="1" aria-label="' + L.name + '">';
+      if (L.marks) h += '<div class="fdots">' + L.marks.map(m => '<button data-act="' + L.k + '=' + m + '" aria-label="' + L.name + ' : repère ' + m + '" style="left:' + ((m - L.min) / (L.max - L.min) * 100) + '%"><i id="rm-' + L.k + m + '"></i></button>').join('') + '</div>';
+      h += '<div class="ends"><span>' + L.lo + '</span><span>' + L.hi + '</span></div></div>';
+    }
+    return h + '</div>';
+  }
+  function reglerLigne(L, r, expert) {
+    const k = L.k, m = !!S.man[k], conseil = r ? VERS[k](r.c) : null, v = m ? S.val[k] : conseil;
+    $('rg-' + k).classList.toggle('man', m);
+    const p = $('rp-' + k); p.classList.toggle('on', !m); p.textContent = m ? 'manuel' : 'auto';
+    p.setAttribute('aria-label', L.name + (m ? ' : manuel, toucher pour repasser en auto' : ' : auto'));
+    let t = v == null ? '' : '· ' + TXT[k](v);
+    if (m && conseil != null && Math.abs(Math.round(conseil) - Math.round(v)) >= 1) t += ' · conseil : ' + TXT[k](conseil);
+    if (!m && k === 'trav' && r && r.sens.trav < 0.05) t += ' (indifférent)';
+    $('rv-' + k).textContent = t;
+    if (L.seg) L.seg.forEach(n => $('rs-' + k + n).setAttribute('aria-pressed', String(v === n)));
+    else {
+      const i = $('rr-' + k); i.disabled = v == null;
+      if (v != null && !touche[k]) i.value = Math.round(v);
+      if (L.marks) L.marks.forEach(mk => $('rm-' + k + mk).classList.toggle('on', v != null && Math.round(v) === mk));
+    }
+    if (expert) { const on = r && r.sens[k] >= 0.05; $('ri-' + k).textContent = !r ? '' : on ? 'jusqu’à −' + fr(Math.max(0.1, Math.round(r.sens[k] * 10) / 10), 1) + ' nd' : 'indifférent'; $('rg-' + k).classList.toggle('off', !!r && !on && !m); }
+  }
+  // vitesse avec les écoutes, le chariot de GV et le hale-bas choisis à la main (les autres réglages restent ceux du moteur)
+  const avecCache = new Map();
+  function avecTesReglages(r) {
+    const ks = ['main', 'jib', 'trav', 'vang'].filter(k => S.man[k]);
+    if (!r || !ks.length) return null;
+    const c = Object.assign({}, r.c);
+    if (S.man.main) c.mainSet = 2 + S.val.main * 0.83;
+    if (S.man.jib) c.jibSet = jm() + S.val.jib / 100 * (38 - jm());
+    if (S.man.trav) c.trav = S.val.trav;
+    if (S.man.vang) c.vang = S.val.vang;
+    const key = [r.tws, r.A, c.reef, c.furl, c.bs, c.car, Math.round(c.mainSet), Math.round(c.jibSet), Math.round(c.trav), Math.round(c.vang)].join('|');
+    if (!avecCache.has(key)) { avecCache.set(key, PHY.steady(r.tws * KN, r.A, c, r, false).V / KN); if (avecCache.size > 200) avecCache.delete(avecCache.keys().next().value); }
+    return avecCache.get(key);
+  }
 
   function render() {
     if (!PHY || !ctx.visible()) return;
@@ -116,7 +187,7 @@
     let r = null;
     if (c.twsL != null && !tooClose && c.twsL >= 2) {
       const tws = Math.round(c.twsL), Ar = Math.min(180, Math.max(TROP_PRES, Math.round(Math.abs(c.twaL) / 5) * 5));
-      r = cache.get([tws, Ar, fixes().reef, fixes().furl].join('|'));
+      r = cache.get(cle(tws, Ar));
       if (!r && !enCalcul) { enCalcul = true; $('r-calc').hidden = false; setTimeout(() => { try { calc(tws, Ar); } finally { enCalcul = false; $('r-calc').hidden = true; render(); } }, 30); }
       if (!r && dernier) r = dernier;
     }
@@ -136,33 +207,17 @@
     const gm = c.v.xdr_heel;
     $('r-phi').textContent = r && !tooClose ? 'Gîte ' + Math.round(r.phi) + '°' + (gm != null ? ' (mesurée ' + Math.round(Math.abs(gm)) + '°)' : '') + ' · barre ' + Math.round(r.helm) + '°' : (gm != null ? 'Gîte mesurée ' + Math.round(Math.abs(gm)) + '°' : '');
     // réglages
-    if (r && !tooClose) {
-      const o = r.c, ri = PHY.FURL_MARKS.indexOf(o.furl), jm = PHY.Y.jibMin;
-      const SIMPLE = [
-        ['reef', 'Ris', o.reef === 0 ? 'aucun, GV pleine' : o.reef === 1 ? '1 ris' : '2 ris', o.reef / 2 * 100, 'GV pleine', '2 ris'],
-        ['furl', 'Génois', o.furl === 0 ? 'déroulé' : 'roulé ' + Math.round(o.furl * 100) + ' %', o.furl / 0.8 * 100, 'déroulé', 'roulé 80 %'],
-        ['main', 'Écoute de GV', 'bôme à ' + Math.round(o.mainSet) + '° de l’axe', o.mainSet / 85 * 100, 'bordée', 'choquée'],
-        ['jib', 'Écoute de génois', jibTxt(o.jibSet), (o.jibSet - jm) / (38 - jm) * 100, 'bordée', 'choquée'],
-        ['trav', 'Chariot de GV', travTxt(o.trav) + (r.sens.trav < 0.05 ? ' (indifférent)' : ''), (o.trav + 100) / 2, 'au vent', 'sous le vent']
-      ];
-      $('r-list').innerHTML = SIMPLE.map(([k, name, val, pos, lo, hi]) => {
-        const m = !!S.man[k], fixe = m && (k === 'reef' || k === 'furl');
-        const pas = fixe ? '<span class="pas"><button data-act="' + k + '-" aria-label="' + name + ' : moins">−</button><button data-act="' + k + '+" aria-label="' + name + ' : plus">+</button></span>' : '';
-        const txt = fixe ? val + ' (choisi)' : m ? 'à toi · conseil : ' + val : val;
-        return '<div class="rg"><div class="rh"><span class="rn">' + name + ' <small>· ' + esc(txt) + '</small></span>' + pas +
-          '<button class="pill' + (m ? '' : ' on') + '" data-act="man-' + k + '" aria-pressed="' + m + '" aria-label="' + name + (m ? ' : repasser en auto' : ' : reprendre la main') + '">' + (m ? 'manuel' : 'auto') + '</button></div>' +
-          curseur(pos, lo, hi, !m || fixe) + '</div>';
-      }).join('');
-      $('r-expert').innerHTML = ['bs', 'car', 'vang'].sort((a, b) => r.sens[b] - r.sens[a]).map((k, i) => {
-        const L = EXPERT[k], on = r.sens[k] >= 0.05;
-        return '<div class="rg' + (on ? '' : ' off') + '"><div class="rh"><span class="rn">' + L.name + ' <small>· ' + L.val(o[k]) + '</small></span><span class="imp">' + (on ? 'jusqu’à −' + fr(Math.max(0.1, Math.round(r.sens[k] * 10) / 10), 1) + ' nd' : 'indifférent') + '</span></div>' + curseur(o[k], L.lo, L.hi, on) + '</div>';
-      }).join('');
-      if (r.next === undefined) { r.next = null; setTimeout(() => { r.next = prochain(r); render(); }, 60); }
-      $('r-next').hidden = !r.next; $('r-nexttxt').textContent = r.next || '';
-    } else {
-      $('r-list').innerHTML = '<p class="note" style="margin:6px 0">' + (tooClose ? 'Trop près du vent : pas de réglage conseillé.' : 'Les réglages s’affichent dès que le vent et son angle sont connus.') + '</p>';
-      $('r-expert').innerHTML = ''; $('r-next').hidden = true;
-    }
+    const rr = r && !tooClose ? r : null;
+    LIGNES.forEach(L => reglerLigne(L, rr, false)); EXPERT.forEach(L => reglerLigne(L, rr, true));
+    $('r-list-note').hidden = !!rr;
+    $('r-list-note').textContent = tooClose ? 'Trop près du vent : pas de réglage conseillé.' : 'Les conseils s’affichent dès que le vent et son angle sont connus.';
+    const av = avecTesReglages(rr);
+    $('r-avec').hidden = av == null;
+    if (av != null) $('r-avec').textContent = 'Avec tes réglages : ' + fr(av, 1) + ' nds (' + (av - rr.V >= -0.05 ? 'au mieux' : '−' + fr(rr.V - av, 1) + ' nd') + ')';
+    if (rr) {
+      if (rr.next === undefined) { rr.next = null; setTimeout(() => { rr.next = prochain(rr); render(); }, 60); }
+      $('r-next').hidden = !rr.next; $('r-nexttxt').textContent = rr.next || '';
+    } else $('r-next').hidden = true;
     $('r-expert').hidden = !S.expert; $('r-exp').setAttribute('aria-expanded', String(S.expert)); $('r-exparrow').textContent = S.expert ? '▴' : '▾';
     // correction du vent
     $('r-editbox').hidden = !S.edit; $('r-edit').setAttribute('aria-pressed', String(S.edit)); $('r-edit').classList.toggle('on', S.edit);
@@ -174,11 +229,11 @@
 
   function action(a) {
     const c = conditions();
-    if (a.startsWith('man-')) {
-      const k = a.slice(4); S.man[k] = !S.man[k];
-      if (S.man[k] && dernier) { if (k === 'reef') S.reef = dernier.c.reef; if (k === 'furl') S.furl = Math.max(0, PHY.FURL_MARKS.indexOf(dernier.c.furl)); }
-    } else if (a === 'reef-' || a === 'reef+') S.reef = Math.max(0, Math.min(2, S.reef + (a === 'reef+' ? 1 : -1)));
-    else if (a === 'furl-' || a === 'furl+') S.furl = Math.max(0, Math.min(PHY.FURL_MARKS.length - 1, S.furl + (a === 'furl+' ? 1 : -1)));
+    if (a.startsWith('man-')) {   // la pastille : manuel → auto ; auto → manuel sur la valeur conseillée
+      const k = a.slice(4);
+      if (S.man[k]) delete S.man[k];
+      else if (dernier) prendre(k, VERS[k](dernier.c));
+    } else if (/^\w+=-?\d+$/.test(a)) { const [k, v] = a.split('='); prendre(k, +v); }   // ris 0-1-2, repères du génois et du chariot
     else if (a === 'auto') { S.man = {}; }
     else if (/^hdg[-+]\d+$/.test(a)) { const d = parseInt(a.slice(3), 10); S.hdgSet = ((Math.round(S.hdgSet != null ? S.hdgSet : c.hdg != null ? c.hdg : 0) + d) % 360 + 360) % 360; }
     else if (a === 'hdgback') S.hdgSet = null;
@@ -195,12 +250,22 @@
     render();
   }
 
+  function prendre(k, v) {
+    S.man[k] = true; S.val[k] = v; if (POSE[k]) S.pose[k] = v;
+    render();
+  }
+
   window.Reglages = {
     // ctx : { bord, last() → dernière position GPS, visible() → écran affiché }
     start(c) {
       if (!window.OTMoteur) return false;
       ctx = c; const m = window.OTMoteur.make('b31'); PHY = m.PHY; PHY.setGeo(window.OTMoteur.geo.b31);
       $('v-set').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) action(b.dataset.act); });
+      $('r-list').innerHTML = LIGNES.map(L => ligneHTML(L, false)).join('') + '<p class="note" id="r-list-note" style="margin:6px 0"></p>';
+      $('r-expert').innerHTML = EXPERT.map(L => ligneHTML(L, true)).join('');
+      // toucher un curseur le passe en manuel ; le moteur recalcule au relâcher pour le génois, le pataras et les chariots de génois
+      $('v-set').addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.k; if (!k) return; touche[k] = true; S.man[k] = true; S.val[k] = +e.target.value; render(); });
+      $('v-set').addEventListener('change', e => { const k = e.target.dataset && e.target.dataset.k; if (!k) return; touche[k] = false; if (POSE[k]) S.pose[k] = S.val[k]; render(); });
       meteo(); setInterval(meteo, 15 * 60 * 1000);
       setInterval(render, 1000);
       return true;
