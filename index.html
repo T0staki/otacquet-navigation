@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="O'Tacquet">
+<meta name="theme-color" content="#EEF2F3">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icone-180.png">
+<title>O'Tacquet en mer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* Instrument de bord, lisible en plein soleil : fond gris d'écume, encre presque noire, un seul accent (orange de balisage). */
+:root{--bg:#EEF2F3;--card:#FFFFFF;--ink:#0D1417;--ink2:#4B575C;--line:#D3DADD;--accent:#B83A0B;--onaccent:#FFFFFF;--sea:#CFE3EA;--rec:#C8281E;
+  --f:Barlow,system-ui,-apple-system,sans-serif;--fc:'Barlow Condensed',Barlow,system-ui,sans-serif;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0B1114;--card:#141D21;--ink:#E8EEF0;--ink2:#9FB0B6;--line:#26333A;--accent:#F0874F;--onaccent:#0B1114;--sea:#16313B;--rec:#FF5A45;color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f);font-size:15px;font-variant-numeric:tabular-nums;-webkit-text-size-adjust:100%;overscroll-behavior:none}
+button{font-family:inherit;color:inherit}
+.app{position:fixed;inset:0;display:flex;flex-direction:column}
+.view{flex:1;min-height:0;display:none;flex-direction:column}
+.view.on{display:flex}
+.top{padding:calc(env(safe-area-inset-top,0px) + 6px) max(14px,env(safe-area-inset-right,0px)) 6px max(14px,env(safe-area-inset-left,0px));display:flex;align-items:center;justify-content:space-between;gap:10px}
+.top h1{margin:0;font-size:20px;font-weight:600}
+.sub{font-size:12px;color:var(--ink2)}
+.map{position:relative;flex:1;min-height:200px;background:var(--sea)}
+.map .leaflet-container{background:var(--sea);font-family:var(--f)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:10px;background:var(--card);border:1px solid var(--line);font-size:13px;font-weight:600}
+.dot{width:10px;height:10px;border-radius:5px;background:var(--rec)}
+.dot.off{background:var(--ink2)}
+.float{position:absolute;z-index:500}
+.recenter{right:12px;top:12px;width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center}
+.panel{background:var(--bg);padding:12px max(14px,env(safe-area-inset-right,0px)) 12px max(14px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.cell{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:7px 10px;display:flex;flex-direction:column;min-width:0}
+.cell span{font-size:12px;color:var(--ink2)}
+.cell b{font-family:var(--fc);font-weight:600;font-size:28px;line-height:1.05;white-space:nowrap}
+.cell b small{font-size:15px;font-weight:500}
+.btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.btn{height:52px;border-radius:14px;border:1px solid var(--ink);background:var(--card);font-size:17px;font-weight:600}
+.btn.main{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.go{background:var(--accent);border-color:var(--accent);color:var(--onaccent);grid-column:1/-1}
+.btn:disabled{opacity:.45}
+.note{font-size:13px;color:var(--ink2);line-height:1.35}
+.warn{font-size:13px;line-height:1.35;padding:8px 10px;border-radius:10px;background:var(--card);border:1px solid var(--accent)}
+.tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:var(--card);border-top:1px solid var(--line);padding-bottom:max(6px,env(safe-area-inset-bottom,0px))}
+.tab{height:50px;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:12px;font-weight:600;color:var(--ink2)}
+.tab[aria-current="page"]{color:var(--accent)}
+.scroll{flex:1;min-height:0;overflow-y:auto;padding:4px max(14px,env(safe-area-inset-right,0px)) 16px max(14px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.label{font-size:13px;font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em}
+.big3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:8px}
+.big3 b{display:block;font-family:var(--fc);font-weight:600;font-size:30px;line-height:1.05;white-space:nowrap}
+.big3 span{font-size:13px;color:var(--ink2)}
+.bars{display:flex;align-items:flex-end;gap:6px;height:90px;margin-top:10px}
+.bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;font-size:11px;color:var(--ink2);height:100%}
+.bar i{display:block;width:100%;border-radius:4px 4px 0 0;background:var(--ink2);opacity:.55;min-height:2px}
+.bar.cur i{background:var(--accent);opacity:1}
+.trip{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.trip svg{flex-shrink:0;border-radius:10px;background:var(--sea)}
+.trip .t1{font-size:12px;color:var(--ink2)}
+.trip .t2{font-size:16px;font-weight:600}
+.trip .t3{font-size:13px;color:var(--ink2)}
+.empty{padding:28px 12px;text-align:center;color:var(--ink2)}
+input.name{width:100%;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:16px;padding:0 12px}
+.endbox{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+.dbg{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--ink2);white-space:pre-wrap}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- Enregistrement -->
+<section class="view on" id="v-rec" aria-label="Navigation en cours">
+  <div class="top">
+    <div><h1>O'Tacquet</h1><div class="sub" id="gps-state">GPS en attente</div></div>
+    <span class="chip" id="rec-chip"><span class="dot off" id="rec-dot"></span><span id="rec-txt">À quai</span></span>
+  </div>
+  <div class="map" id="map-wrap">
+    <div id="map" style="position:absolute;inset:0"></div>
+    <button class="float recenter" id="b-center" aria-label="Recentrer sur le bateau" hidden>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path></svg>
+    </button>
+  </div>
+  <div class="panel">
+    <div class="grid">
+      <div class="cell"><span>Distance</span><b id="s-dist">0,00 <small>M</small></b></div>
+      <div class="cell"><span>Durée</span><b id="s-dur">0:00</b></div>
+      <div class="cell"><span>Vitesse</span><b id="s-sog">– <small>nds</small></b></div>
+      <div class="cell"><span>Moyenne</span><b id="s-avg">– <small>nds</small></b></div>
+      <div class="cell"><span>Pointe</span><b id="s-peak">– <small>nds</small></b></div>
+      <div class="cell"><span>Route fond</span><b id="s-cog">–</b></div>
+    </div>
+    <div class="warn" id="lock-warn" hidden></div>
+    <div class="btns" id="ctl-idle"><button class="btn go" id="b-start">Démarrer l'enregistrement</button></div>
+    <div class="btns" id="ctl-run" hidden><button class="btn" id="b-pause">Pause</button><button class="btn main" id="b-stop">Terminer</button></div>
+    <div id="ctl-end" hidden class="endbox">
+      <label class="note" for="i-name">Nom de la sortie</label>
+      <input class="name" id="i-name" autocomplete="off">
+      <div class="btns"><button class="btn" id="b-cancel">Reprendre</button><button class="btn main" id="b-save">Enregistrer</button></div>
+    </div>
+    <p class="note" id="rec-note">Garde l'écran allumé pendant l'enregistrement : sur iPhone, Safari coupe le GPS quand l'écran se verrouille.</p>
+  </div>
+</section>
+
+<!-- Journal -->
+<section class="view" id="v-log" aria-label="Journal de bord">
+  <div class="top"><div><h1>Journal de bord</h1><div class="sub">Traces gardées sur ce téléphone</div></div></div>
+  <div class="scroll" id="log"></div>
+</section>
+
+<!-- Détail d'une sortie -->
+<section class="view" id="v-trip" aria-label="Sortie">
+  <div class="top">
+    <button class="chip" id="b-back" aria-label="Retour au journal">‹ Journal</button>
+    <span class="sub" id="trip-date"></span>
+  </div>
+  <div class="map" style="flex:0 0 42%"><div id="map2" style="position:absolute;inset:0"></div></div>
+  <div class="scroll" id="trip"></div>
+</section>
+
+<nav class="tabs" aria-label="Modes">
+  <button class="tab" id="t-rec" aria-current="page">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>En mer</button>
+  <button class="tab" id="t-log">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c3-1 3-6 6-7s5 3 8 1"></path><circle cx="4" cy="18" r="2"></circle><circle cx="18" cy="12" r="2"></circle></svg>Journal</button>
+</nav>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="trace.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const fr = (n, d) => n.toFixed(d).replace('.', ',');
+const J = window.Journal;
+const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const JOURS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+const dateTxt = t => { const d = new Date(t); return JOURS[d.getDay()] + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()] + ' ' + d.getFullYear(); };
+const hm = t => { const d = new Date(t); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+const durTxt = s => { const mm = Math.round(Math.max(0, s) / 60), h = Math.floor(mm / 60), m = mm % 60; return h + ':' + String(m).padStart(2, '0'); };
+const durLong = s => { const mm = Math.round(Math.max(0, s) / 60), h = Math.floor(mm / 60), m = mm % 60; return h ? h + ' h ' + String(m).padStart(2, '0') : m + ' min'; };
+
+/* ---------- Stockage : IndexedDB, sur ce téléphone ---------- */
+const DB = (() => {
+  let p = null;
+  const open = () => p || (p = new Promise((res, rej) => {
+    const r = indexedDB.open('otacquet-journal', 1);
+    r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('trips', { keyPath: 'id' }); d.createObjectStore('live'); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+  const tx = async (store, mode, fn) => { const d = await open(); return new Promise((res, rej) => { const t = d.transaction(store, mode), s = t.objectStore(store); const out = fn(s); t.oncomplete = () => res(out && out.result !== undefined ? out.result : out); t.onerror = () => rej(t.error); }); };
+  return {
+    put: trip => tx('trips', 'readwrite', s => s.put(trip)),
+    del: id => tx('trips', 'readwrite', s => s.delete(id)),
+    all: () => tx('trips', 'readonly', s => s.getAll()),
+    get: id => tx('trips', 'readonly', s => s.get(id)),
+    live: v => tx('live', 'readwrite', s => v === null ? s.delete('current') : s.put(v, 'current')),
+    getLive: () => tx('live', 'readonly', s => s.get('current'))
+  };
+})();
+
+/* ---------- Carte : OpenStreetMap + balisage OpenSeaMap ---------- */
+function makeMap(id) {
+  const m = L.map(id, { zoomControl: false, attributionControl: true }).setView([48.64, -2.25], 12);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(m);
+  L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenSeaMap' }).addTo(m);
+  return m;
+}
+const accent = () => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+let map = null, line = null, boat = null, follow = true;
+function initMap() {
+  if (map || !window.L) return;
+  map = makeMap('map');
+  line = L.polyline([], { color: accent(), weight: 4 }).addTo(map);
+  boat = L.circleMarker([48.64, -2.25], { radius: 8, color: '#FFFFFF', weight: 3, fillColor: accent(), fillOpacity: 1 });
+  map.on('dragstart', () => { follow = false; $('b-center').hidden = false; });
+}
+$('b-center').onclick = () => { follow = true; $('b-center').hidden = true; if (last) map.setView([last.lat, last.lon]); };
+
+/* ---------- Enregistrement ---------- */
+let tr = null, watch = null, rec = { state: 'idle' }, last = null, raw = 0, wake = null, tick = null, hiddenAt = 0, gaps = [];
+async function keepAwake() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible') { wake = await navigator.wakeLock.request('screen'); } } catch (e) { wake = null; } }
+function gpsOn() {
+  if (!('geolocation' in navigator)) { $('gps-state').textContent = 'Pas de GPS dans ce navigateur'; return; }
+  watch = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+}
+function gpsOff() { if (watch != null) navigator.geolocation.clearWatch(watch); watch = null; }
+function onErr(e) {
+  const m = { 1: 'GPS refusé : autorise la localisation pour Safari (Réglages › Confidentialité › Service de localisation)', 2: 'Position indisponible', 3: 'GPS lent à répondre' };
+  $('gps-state').textContent = m[e.code] || 'Erreur GPS';
+}
+function onPos(p) {
+  const c = p.coords;
+  const fix = { t: p.timestamp || Date.now(), lat: c.latitude, lon: c.longitude, acc: c.accuracy,
+    sog: c.speed != null && c.speed >= 0 ? c.speed * J.MS_TO_KN : null, cog: c.heading != null && !isNaN(c.heading) ? c.heading : null };
+  last = fix; raw++;
+  $('gps-state').textContent = 'GPS ± ' + Math.round(c.accuracy) + ' m';
+  if (map) {
+    if (!map.hasLayer(boat)) boat.addTo(map);
+    boat.setLatLng([fix.lat, fix.lon]);
+    if (follow) map.setView([fix.lat, fix.lon], Math.max(map.getZoom(), 14), { animate: false });
+  }
+  if (rec.state === 'run') { if (tr.add(fix) && line) line.addLatLng([fix.lat, fix.lon]); }
+  show();
+}
+function show() {
+  const s = tr ? tr.stats() : null;
+  $('s-dist').innerHTML = fr(s ? s.distanceNM : 0, 2) + ' <small>M</small>';
+  $('s-dur').textContent = durTxt(rec.start ? Math.max((Date.now() - rec.start) / 1000, s ? s.durationS : 0) : 0);
+  const sog = last && last.sog != null ? last.sog : null;
+  $('s-sog').innerHTML = (sog != null ? fr(sog, 1) : '–') + ' <small>nds</small>';
+  $('s-avg').innerHTML = (s && s.avgKn ? fr(s.avgKn, 1) : '–') + ' <small>nds</small>';
+  $('s-peak').innerHTML = (s && s.peakKn && s.movingS > 30 ? fr(s.peakKn, 1) : '–') + ' <small>nds</small>';
+  $('s-cog').textContent = last && last.cog != null && sog > 0.5 ? String(Math.round(last.cog)).padStart(3, '0') + '°' : '–';
+}
+function setState(st) {
+  rec.state = st;
+  $('ctl-idle').hidden = st !== 'idle'; $('ctl-run').hidden = !(st === 'run' || st === 'pause'); $('ctl-end').hidden = st !== 'end';
+  $('rec-dot').className = 'dot' + (st === 'run' ? '' : ' off');
+  $('rec-txt').textContent = st === 'run' ? 'Enregistrement' : st === 'pause' ? 'En pause' : st === 'end' ? 'Terminé' : 'À quai';
+  $('b-pause').textContent = st === 'pause' ? 'Reprendre' : 'Pause';
+}
+async function saveLive() { if (tr && rec.state !== 'idle') { try { await DB.live({ id: rec.id, start: rec.start, pts: tr.pts, gaps }); } catch (e) {} } }
+async function start(resume) {
+  initMap();
+  if (!resume) { tr = new J.Trace(); rec = { id: Date.now(), start: Date.now(), state: 'run' }; gaps = []; line && line.setLatLngs([]); }
+  setState('run'); follow = true; gpsOn(); keepAwake();
+  clearInterval(tick); tick = setInterval(() => { show(); }, 1000);
+  clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000);
+}
+$('b-start').onclick = () => start(false);
+$('b-pause').onclick = () => { if (rec.state === 'run') { setState('pause'); saveLive(); } else { setState('run'); keepAwake(); } };
+$('b-stop').onclick = () => { setState('end'); const d = new Date(rec.start); $('i-name').value = 'Sortie du ' + d.getDate() + ' ' + MOIS[d.getMonth()]; saveLive(); };
+$('b-cancel').onclick = () => setState('run');
+$('b-save').onclick = async () => {
+  gpsOff(); clearInterval(tick); clearInterval(rec.saver);
+  const s = tr.stats();
+  const trip = { id: rec.id, name: ($('i-name').value || 'Sortie').trim(), start: s.points ? s.start : rec.start, end: s.points ? s.end : Date.now(),
+    stats: { distanceNM: s.distanceNM, durationS: s.durationS, movingS: s.movingS, avgKn: s.avgKn, peakKn: s.peakKn, points: s.points, rejected: s.rejected, raw }, gaps,
+    pts: tr.pts.map(p => [p.t, +p.lat.toFixed(6), +p.lon.toFixed(6), p.acc != null ? Math.round(p.acc) : null]) };
+  await DB.put(trip); await DB.live(null);
+  tr = null; rec = { state: 'idle' }; setState('idle'); line && line.setLatLngs([]); gpsOn(); show();
+  openLog();
+};
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); saveLive(); }
+  else {
+    if (rec.state === 'run' && hiddenAt && Date.now() - hiddenAt > 30000) {
+      const g = { from: hiddenAt, to: Date.now() }; gaps.push(g);
+      const w = $('lock-warn'); w.hidden = false;
+      w.textContent = 'Trace interrompue ' + durLong((g.to - g.from) / 1000) + ' (écran verrouillé ou appli quittée) : la distance de ce trou est comptée en ligne droite.';
+    }
+    hiddenAt = 0; if (rec.state === 'run') keepAwake();
+  }
+});
+
+/* ---------- Journal ---------- */
+function thumb(pts, w, h) {
+  if (!pts || pts.length < 2) return '';
+  let a = 90, b = -90, c = 180, d = -180; for (const p of pts) { a = Math.min(a, p[1]); b = Math.max(b, p[1]); c = Math.min(c, p[2]); d = Math.max(d, p[2]); }
+  const k = Math.cos((a + b) / 2 * Math.PI / 180), sx = (d - c) * k || 1e-9, sy = (b - a) || 1e-9, s = Math.min((w - 10) / sx, (h - 10) / sy);
+  const ox = (w - sx * s) / 2, oy = (h - sy * s) / 2, step = Math.max(1, Math.floor(pts.length / 80));
+  const xy = pts.filter((_, i) => i % step === 0 || i === pts.length - 1).map(p => (ox + (p[2] - c) * k * s).toFixed(1) + ',' + (h - oy - (p[1] - a) * s).toFixed(1)).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${xy}" fill="none" stroke="${accent()}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function openLog() {
+  tab('log');
+  const trips = (await DB.all()).sort((x, y) => y.start - x.start), el = $('log');
+  const yr = new Date().getFullYear(), ofYear = trips.filter(t => new Date(t.start).getFullYear() === yr);
+  const S = J.season(ofYear.map(t => ({ start: t.start, distanceNM: t.stats.distanceNM, movingS: t.stats.movingS })));
+  const months = []; const now = new Date(); for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push([d, S.months[d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')] || 0]); }
+  const mx = Math.max(1, ...months.map(m => m[1]));
+  let h = `<div class="card"><div class="label">Saison ${yr}</div>
+    <div class="big3"><div><b>${fr(S.totalNM, S.totalNM < 100 ? 1 : 0)}</b><span>milles</span></div><div><b>${S.trips}</b><span>sorties</span></div><div><b>${durLong(S.movingS)}</b><span>en mouvement</span></div></div>
+    <div class="bars" role="img" aria-label="Milles par mois">${months.map(([d, v], i) => `<div class="bar${i === 5 ? ' cur' : ''}"><span>${v ? fr(v, v < 10 ? 1 : 0) : ''}</span><i style="height:${Math.round(v / mx * 60)}px"></i>${MOIS[d.getMonth()]}</div>`).join('')}</div>
+    ${S.trips ? `<p class="note" style="margin:8px 0 0">Plus longue sortie ${fr(S.longestNM, 1)} M</p>` : ''}</div>`;
+  h += `<div class="label" style="padding:4px 2px 0">Sorties</div>`;
+  if (!trips.length) h += `<div class="card empty">Aucune sortie enregistrée. Lance l'enregistrement depuis l'onglet « En mer » : la trace, les milles et les vitesses apparaîtront ici.</div>`;
+  for (const t of trips) h += `<button class="trip" data-id="${t.id}">${thumb(t.pts, 56, 56)}<div style="min-width:0"><div class="t1">${dateTxt(t.start)} · ${hm(t.start)}</div><div class="t2">${esc(t.name)}</div><div class="t3">${fr(t.stats.distanceNM, 1)} M · ${durLong(t.stats.durationS)} · moy. ${fr(t.stats.avgKn || 0, 1)} nds</div></div></button>`;
+  el.innerHTML = h;
+  el.querySelectorAll('.trip').forEach(b => b.onclick = () => openTrip(+b.dataset.id));
+}
+let map2 = null, line2 = null;
+async function openTrip(id) {
+  const t = await DB.get(id); if (!t) return;
+  tab('trip');
+  if (!map2 && window.L) { map2 = makeMap('map2'); line2 = L.polyline([], { color: accent(), weight: 4 }).addTo(map2); }
+  if (map2) { map2.invalidateSize(); const ll = t.pts.map(p => [p[1], p[2]]); line2.setLatLngs(ll); if (ll.length > 1) map2.fitBounds(line2.getBounds(), { padding: [20, 20] }); }
+  $('trip-date').textContent = dateTxt(t.start);
+  const s = t.stats;
+  $('trip').innerHTML = `<div style="font-size:20px;font-weight:600">${esc(t.name)}</div>
+   <div class="grid">
+    <div class="cell"><span>Distance</span><b>${fr(s.distanceNM, 2)} <small>M</small></b></div>
+    <div class="cell"><span>Durée</span><b>${durTxt(s.durationS)}</b></div>
+    <div class="cell"><span>En mouvement</span><b>${durTxt(s.movingS)}</b></div>
+    <div class="cell"><span>Moyenne</span><b>${fr(s.avgKn || 0, 1)} <small>nds</small></b></div>
+    <div class="cell"><span>Pointe 30 s</span><b>${fr(s.peakKn || 0, 1)} <small>nds</small></b></div>
+    <div class="cell"><span>Départ</span><b>${hm(t.start)}</b></div>
+   </div>
+   ${t.gaps && t.gaps.length ? `<p class="warn">${t.gaps.length} interruption(s) de la trace, écran verrouillé.</p>` : ''}
+   <div class="btns"><button class="btn" id="b-gpx">Exporter en GPX</button><button class="btn" id="b-del">Supprimer</button></div>
+   <div id="del-confirm" hidden class="card"><p style="margin:0 0 8px">Supprimer définitivement cette sortie de ce téléphone ?</p><div class="btns"><button class="btn" id="b-del-no">Garder</button><button class="btn main" id="b-del-yes">Supprimer</button></div></div>
+   <p class="dbg">${s.points} points gardés sur ${s.raw || '?'} reçus du GPS · ${s.rejected} écartés (imprécis ou sauts)</p>`;
+  $('b-gpx').onclick = () => {
+    const tt = J.Trace.fromPoints(t.pts.map(p => ({ t: p[0], lat: p[1], lon: p[2], acc: p[3] })), { minStep: 0, maxAcc: 1e9, maxKn: 1e9 });
+    const blob = new Blob([tt.toGPX(t.name)], { type: 'application/gpx+xml' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = t.name.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') + '.gpx'; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  };
+  $('b-del').onclick = () => { $('del-confirm').hidden = false; };
+  $('b-del-no').onclick = () => { $('del-confirm').hidden = true; };
+  $('b-del-yes').onclick = async () => { await DB.del(t.id); openLog(); };
+}
+$('b-back').onclick = () => openLog();
+
+/* ---------- Onglets ---------- */
+function tab(w) {
+  $('v-rec').classList.toggle('on', w === 'rec'); $('v-log').classList.toggle('on', w === 'log'); $('v-trip').classList.toggle('on', w === 'trip');
+  $('t-rec').setAttribute('aria-current', w === 'rec' ? 'page' : 'false'); $('t-log').setAttribute('aria-current', w === 'log' || w === 'trip' ? 'page' : 'false');
+  if (w === 'rec' && map) setTimeout(() => map.invalidateSize(), 0);
+}
+$('t-rec').onclick = () => tab('rec');
+$('t-log').onclick = () => openLog();
+
+/* ---------- Démarrage : reprise d'un enregistrement interrompu ---------- */
+(async () => {
+  initMap(); gpsOn(); show();
+  try {
+    const lv = await DB.getLive();
+    if (lv && lv.pts && lv.pts.length) {
+      tr = J.Trace.fromPoints([]); tr.pts = lv.pts; rec = { id: lv.id, start: lv.start, state: 'pause' }; gaps = lv.gaps || [];
+      if (line) line.setLatLngs(lv.pts.map(p => [p.lat, p.lon]));
+      const w = $('lock-warn'); w.hidden = false; w.textContent = 'Enregistrement interrompu retrouvé (' + fr(tr.stats().distanceNM, 2) + ' M depuis ' + hm(lv.start) + ') : reprends-le ou termine-le.';
+      setState('pause'); clearInterval(tick); tick = setInterval(show, 1000); clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000); show();
+    }
+  } catch (e) {}
+})();
+window.__app = { DB, onPos: p => onPos(p), state: () => rec.state, stats: () => tr && tr.stats() };
+</script>
+</body>
+</html>
