@@ -237,6 +237,8 @@
     else if (a === 'auto') { S.man = {}; }
     else if (/^hdg[-+]\d+$/.test(a)) { const d = parseInt(a.slice(3), 10); S.hdgSet = ((Math.round(S.hdgSet != null ? S.hdgSet : c.hdg != null ? c.hdg : 0) + d) % 360 + 360) % 360; }
     else if (a === 'hdgback') S.hdgSet = null;
+    else if (a === 'plein') { ouvrirPlein(); return; }
+    else if (a === 'pleinfin') { fermerPlein(); return; }
     else if (a === 'expert') S.expert = !S.expert;
     else if (a === 'edit') S.edit = !S.edit;
     else if (a === 'refresh') { meteo(); return; }
@@ -249,6 +251,38 @@
     }
     render();
   }
+
+  /* ---------- Plein écran : le bateau en 3D, vue du simulateur pilotée par le vent du moment ---------- */
+  let plein = null, envoi = '';
+  function ouvrirPlein() {
+    const c = conditions(), q = ['boat=b31', 'go=1', 'live=0', 'view=chase'];
+    if (c.tws != null) q.push('tws=' + Math.max(3, Math.round(c.tws)));
+    if (c.twd != null) q.push('twd=' + ((Math.round(c.twd / 5) * 5) % 360));
+    $('v-boat').hidden = false; $('pl-load').hidden = false; $('pl-info').hidden = false; envoi = '';
+    const f = document.createElement('iframe');
+    f.src = 'moteur/bateau.html#' + q.join('&'); f.title = 'O’Tacquet en 3D';
+    f.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0';
+    $('pl-3d').appendChild(f); plein = f; pleinMaj();
+  }
+  function fermerPlein() { $('v-boat').hidden = true; if (plein) { plein.remove(); plein = null; } render(); }   // la vue 3D est libérée : batterie
+  function pleinMaj() {
+    if (!plein) return;
+    const c = conditions(), r = dernier, A = c.twa != null ? Math.abs(c.twa) : null, gm = c.v.xdr_heel;
+    $('pl-tw').textContent = c.tws != null ? fr(c.tws, 0) + ' nds' + (A != null ? ' · ' + Math.round(A) + '° ' + (c.twa >= 0 ? 'tribord' : 'bâbord') : '') : '–';
+    $('pl-heellab').textContent = gm != null ? 'Gîte' : 'Gîte (modèle)';
+    $('pl-heel').textContent = gm != null ? Math.round(Math.abs(gm)) + '°' : r ? Math.round(r.phi) + '°' : '–';
+    $('pl-vmlab').textContent = 'Vitesse réelle · ' + (c.vmSrc === 'loch' ? 'STW' : c.vmSrc === 'GPS' ? 'SOG' : 'en attente');
+    $('pl-vm').textContent = c.vm != null ? fr(c.vm, 1) : '–';
+    $('pl-vclab').textContent = r ? 'Max théorique ' + fr(r.V, 1) + ' nds' : 'Max théorique';
+    $('pl-ecart').textContent = r && c.vm != null ? (c.vm - r.V >= 0 ? '+' : '−') + fr(Math.abs(c.vm - r.V), 1) : '';
+    // vers la vue 3D, seulement quand le vent arrondi ou les voiles choisies changent (la mer du simulateur se recalcule à chaque envoi)
+    const m = { ot: 'bateau', tws: c.twsL != null ? Math.round(c.twsL) : c.tws != null ? Math.round(c.tws) : null, twd: c.twd != null ? Math.round(c.twd / 5) * 5 : null,
+      twa: c.twaL != null ? Math.round(c.twaL / 5) * 5 : c.twa != null ? Math.round(c.twa / 5) * 5 : null,
+      reef: S.man.reef && S.pose.reef != null ? S.pose.reef : null, furl: S.man.furl && S.pose.furl != null ? S.pose.furl : null };
+    const sig = JSON.stringify(m);
+    if (sig !== envoi && plein.contentWindow) { plein.contentWindow.postMessage(m, '*'); envoi = sig; }
+  }
+  window.addEventListener('message', e => { if (plein && e.source === plein.contentWindow && e.data && e.data.ot === 'bateau-pret') { $('pl-load').hidden = true; envoi = ''; pleinMaj(); } });
 
   function prendre(k, v) {
     S.man[k] = true; S.val[k] = v; if (POSE[k]) S.pose[k] = v;
@@ -267,7 +301,9 @@
       $('v-set').addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.k; if (!k) return; touche[k] = true; S.man[k] = true; S.val[k] = +e.target.value; render(); });
       $('v-set').addEventListener('change', e => { const k = e.target.dataset && e.target.dataset.k; if (!k) return; touche[k] = false; if (POSE[k]) S.pose[k] = S.val[k]; render(); });
       meteo(); setInterval(meteo, 15 * 60 * 1000);
-      setInterval(render, 1000);
+      setInterval(() => { render(); pleinMaj(); }, 1000);
+      $('pl-tog').addEventListener('click', () => { $('pl-info').hidden = !$('pl-info').hidden; });
+      $('v-boat').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) action(b.dataset.act); });
       return true;
     },
     render

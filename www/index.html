@@ -87,6 +87,21 @@ a{color:var(--accent)}
 .panel.min .grid,.panel.min .inst,.panel.min #bg-panel,.panel.min #rec-note{display:none!important}
 .legend{position:fixed;z-index:1000;left:12px;right:12px;padding:10px 12px;border-radius:12px;background:var(--ink);color:var(--bg);font-size:14px;line-height:1.35;box-shadow:0 6px 24px rgba(0,0,0,.3);pointer-events:none}
 .legend b{display:block;font-size:15px;margin-bottom:2px}
+/* Plein écran (maquette 3, « Bateau ») : couleurs fixes, le fond est la mer en 3D */
+.plein{position:fixed;inset:0;z-index:900;background:#0B2A3A;color:#FFFFFF;font-variant-numeric:tabular-nums}
+.pl-load{position:absolute;left:0;right:0;top:45%;text-align:center;color:#C9D3D6;margin:0}
+.pl-tog{position:absolute;inset:0;border:0;background:transparent;padding:0}
+.pl-info{position:absolute;inset:0;pointer-events:none}
+.pl-top{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:16px;right:16px;display:flex;justify-content:space-between}
+.pl-box{display:flex;flex-direction:column;padding:8px 12px;border-radius:14px;background:rgba(6,12,14,.62)}
+.pl-box span{font-size:12px;color:#C9D3D6}
+.pl-box b{font-family:var(--fc);font-weight:600;font-size:26px;line-height:1.05}
+.pl-bot{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;flex-direction:column;gap:8px}
+.pl-vit{flex-direction:row;align-items:flex-end;justify-content:space-between;padding:12px 16px;border-radius:20px;background:rgba(6,12,14,.66)}
+.pl-vit span{font-size:13px}
+.pl-box b.pl-vm{font-size:76px;line-height:.95}
+.pl-box b.pl-ecart{font-size:30px;color:#FFA27A}
+.pl-btn{pointer-events:auto;height:48px;border-radius:14px;border:0;display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(6,12,14,.66);color:#FFFFFF;font-family:inherit;font-size:16px;font-weight:600}
 /* Écran Réglages (maquette 3) */
 #v-set .scroll{gap:8px;padding-top:2px}
 .ibtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--ink);display:flex;align-items:center;justify-content:center;padding:0}
@@ -206,6 +221,7 @@ a{color:var(--accent)}
     <div style="min-width:0"><h1>O'Tacquet</h1><div class="sub" id="r-src">Vent en attente</div></div>
     <div style="display:flex;gap:6px;flex-shrink:0">
       <button class="ibtn" data-act="refresh" aria-label="Recharger la météo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg></button>
+      <button class="ibtn" data-act="plein" aria-label="Passer en plein écran"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg></button>
       <button class="ibtn" id="r-edit" data-act="edit" aria-pressed="false" aria-label="Corriger le vent"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"></path></svg></button>
     </div>
   </div>
@@ -269,6 +285,19 @@ a{color:var(--accent)}
   <div class="scroll" id="trip"></div>
 </section>
 
+<!-- Plein écran : le bateau en 3D (vue du simulateur) et le minimum d'informations -->
+<section class="plein" id="v-boat" hidden aria-label="O'Tacquet en plein écran">
+  <div id="pl-3d" style="position:absolute;inset:0"></div>
+  <p class="pl-load" id="pl-load">Chargement de la vue 3D…</p>
+  <button class="pl-tog" id="pl-tog" aria-label="Afficher ou masquer les informations"></button>
+  <div class="pl-info" id="pl-info">
+    <div class="pl-top"><div class="pl-box"><span>TWS · TWA</span><b id="pl-tw">–</b></div><div class="pl-box" style="align-items:flex-end"><span id="pl-heellab">Gîte</span><b id="pl-heel">–</b></div></div>
+    <div class="pl-bot">
+      <div class="pl-box pl-vit"><div><span id="pl-vmlab">Vitesse réelle · STW</span><b class="pl-vm" id="pl-vm">–</b></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding-bottom:6px"><span id="pl-vclab">Max théorique</span><b class="pl-ecart" id="pl-ecart"></b></div></div>
+      <button class="pl-btn" data-act="pleinfin"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg>Réglages</button>
+    </div>
+  </div>
+</section>
 <div class="legend" id="legend" role="tooltip" hidden><b id="leg-t"></b><span id="leg-p"></span></div>
 <nav class="tabs" aria-label="Modes">
   <button class="tab" id="t-set" hidden>
