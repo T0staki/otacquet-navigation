@@ -11,7 +11,7 @@
   const KN = 0.514444, TROP_PRES = 40, LISSAGE = 0.15;   // lissage du vent du B&G, par seconde (≈ 6 s)
   const ALLURES = [['Près', 0, 60], ['Bon plein', 60, 80], ['Travers', 80, 100], ['Largue', 100, 135], ['Grand largue', 135, 165], ['Vent arrière', 165, 181]];
   const VALS = { bs: [0, 25, 50, 75, 100], car: [0, 25, 50, 75, 100], vang: [0, 25, 50, 75, 100], trav: [-100, -50, 0, 50, 100] };
-  let PHY = null, ctx = null, lisse = null, dernier = null, enCalcul = false;
+  let PHY = null, ctx = null, lisse = null, dernier = null, dernier0 = null, enCalcul = false;   // dernier : avec les réglages forcés ; dernier0 : tout en auto
   // man : réglages repris à la main ; val : leur valeur en unités de curseur (écoutes 0-100, génois 0-80 % roulé, chariot −100-100, ris 0-2) ;
   // pose : valeur prise en compte par le moteur pour le ris, le génois, le pataras et les chariots de génois (au relâcher du curseur)
   const S = { hdgSet: null, man: {}, val: {}, pose: {}, expert: false, edit: false, meteo: null, meteoErr: '', corr: null };
@@ -53,9 +53,9 @@
     if (S.man.car && S.pose.car != null) fx.car = S.pose.car;
     return fx;
   }
-  const cle = (tws, A) => { const fx = fixes(); return [tws, A, fx.reef, fx.furl, fx.bs, fx.car].join('|'); };
-  function calc(tws, A) {
-    const fx = fixes(), key = cle(tws, A);
+  const cle = (tws, A, fx) => [tws, A, fx.reef, fx.furl, fx.bs, fx.car].join('|');
+  function calc(tws, A, fx) {
+    const key = cle(tws, A, fx);
     if (cache.has(key)) return cache.get(key);
     const T = tws * KN, o = PHY.optimum(T, A, Object.keys(fx).length ? fx : null);
     const s = PHY.steady(T, A, o.c, o, true), sens = {};
@@ -154,18 +154,18 @@
     }
     if (expert) { const on = r && r.sens[k] >= 0.05; $('ri-' + k).textContent = !r ? '' : on ? 'jusqu’à −' + fr(Math.max(0.1, Math.round(r.sens[k] * 10) / 10), 1) + ' nd' : 'indifférent'; $('rg-' + k).classList.toggle('off', !!r && !on && !m); }
   }
-  // vitesse avec les écoutes, le chariot de GV et le hale-bas choisis à la main (les autres réglages restent ceux du moteur)
+  // vitesse, gîte et barre avec tout ce qui est forcé à la main (les réglages restés en auto suivent le conseil adapté à ces choix)
   const avecCache = new Map();
   function avecTesReglages(r) {
-    const ks = ['main', 'jib', 'trav', 'vang'].filter(k => S.man[k]);
-    if (!r || !ks.length) return null;
+    if (!r || !Object.keys(S.man).some(k => S.man[k])) return null;
+    if (!['main', 'jib', 'trav', 'vang'].some(k => S.man[k])) return { V: r.V, phi: r.phi, helm: r.helm };
     const c = Object.assign({}, r.c);
     if (S.man.main) c.mainSet = 2 + S.val.main * 0.83;
     if (S.man.jib) c.jibSet = jm() + S.val.jib / 100 * (38 - jm());
     if (S.man.trav) c.trav = S.val.trav;
     if (S.man.vang) c.vang = S.val.vang;
     const key = [r.tws, r.A, c.reef, c.furl, c.bs, c.car, Math.round(c.mainSet), Math.round(c.jibSet), Math.round(c.trav), Math.round(c.vang)].join('|');
-    if (!avecCache.has(key)) { avecCache.set(key, PHY.steady(r.tws * KN, r.A, c, r, false).V / KN); if (avecCache.size > 200) avecCache.delete(avecCache.keys().next().value); }
+    if (!avecCache.has(key)) { const s = PHY.steady(r.tws * KN, r.A, c, r, false); avecCache.set(key, { V: s.V / KN, phi: s.phi, helm: Math.abs(s.helm) }); if (avecCache.size > 200) avecCache.delete(avecCache.keys().next().value); }
     return avecCache.get(key);
   }
 
@@ -184,14 +184,16 @@
     $('r-twa').textContent = A == null ? (c.tws != null ? 'il manque le cap pour la TWA' : '') : tooClose ? 'Trop près du vent (' + Math.round(A) + '°) : abats' : (c.twd != null ? 'TWD ' + String(Math.round(c.twd) % 360).padStart(3, '0') + '° · ' : '') + 'TWA ' + Math.round(A) + '° ' + cote;
     $('r-twa').classList.toggle('alerte', tooClose);
     // moteur sur le vent lissé, arrondi (1 nd, 5°)
-    let r = null;
+    let r = null, r0 = null;
     if (c.twsL != null && !tooClose && c.twsL >= 2) {
-      const tws = Math.round(c.twsL), Ar = Math.min(180, Math.max(TROP_PRES, Math.round(Math.abs(c.twaL) / 5) * 5));
-      r = cache.get(cle(tws, Ar));
-      if (!r && !enCalcul) { enCalcul = true; $('r-calc').hidden = false; setTimeout(() => { try { calc(tws, Ar); } finally { enCalcul = false; $('r-calc').hidden = true; render(); } }, 30); }
+      const tws = Math.round(c.twsL), Ar = Math.min(180, Math.max(TROP_PRES, Math.round(Math.abs(c.twaL) / 5) * 5)), fx = fixes();
+      r0 = cache.get(cle(tws, Ar, {})); r = Object.keys(fx).length ? cache.get(cle(tws, Ar, fx)) : r0;
+      const manque = !r0 ? {} : !r ? fx : null;   // tout en auto d'abord, puis autour des réglages forcés
+      if (manque && !enCalcul) { enCalcul = true; $('r-calc').hidden = false; setTimeout(() => { try { calc(tws, Ar, manque); } finally { enCalcul = false; $('r-calc').hidden = true; render(); } }, 30); }
+      if (!r0 && dernier0) r0 = dernier0;
       if (!r && dernier) r = dernier;
     }
-    if (r) dernier = r;
+    if (r) dernier = r; if (r0) dernier0 = r0;
     let awa = c.awa;
     if (awa == null && c.twa != null && r) awa = Math.sign(c.twa || 1) * Math.atan2(c.tws * Math.sin(A * Math.PI / 180), c.tws * Math.cos(A * Math.PI / 180) + r.V) * 180 / Math.PI;
     $('r-aw-txt').textContent = awa != null ? 'AWA ' + Math.round(Math.abs(awa)) + '°' + (c.awa != null ? ' (B&G)' : ' (calculé)') : '';
@@ -203,17 +205,21 @@
     // vitesses
     $('r-vm').textContent = c.vm != null ? fr(c.vm, 1) : '–';
     $('r-vmlab').textContent = 'Vitesse réelle · ' + (c.vmSrc === 'loch' ? 'STW' : c.vmSrc === 'GPS' ? 'SOG' : 'en attente');
-    $('r-vc').textContent = r && !tooClose ? fr(r.V, 1) : '–';
-    const gm = c.v.xdr_heel;
-    $('r-phi').textContent = r && !tooClose ? 'Gîte ' + Math.round(r.phi) + '°' + (gm != null ? ' (mesurée ' + Math.round(Math.abs(gm)) + '°)' : '') + ' · barre ' + Math.round(r.helm) + '°' : (gm != null ? 'Gîte mesurée ' + Math.round(Math.abs(gm)) + '°' : '');
+    $('r-vc').textContent = r0 && !tooClose ? fr(r0.V, 1) : '–';
+    const gm = c.v.xdr_heel, mes = gm != null ? ' · gîte mesurée ' + Math.round(Math.abs(gm)) + '°' : '';
+    $('r-phi').textContent = r0 && !tooClose ? 'Au mieux : gîte ' + Math.round(r0.phi) + '° · barre ' + Math.round(r0.helm) + '°' + mes : (gm != null ? 'Gîte mesurée ' + Math.round(Math.abs(gm)) + '°' : '');
     // réglages
     const rr = r && !tooClose ? r : null;
     LIGNES.forEach(L => reglerLigne(L, rr, false)); EXPERT.forEach(L => reglerLigne(L, rr, true));
     $('r-list-note').hidden = !!rr;
     $('r-list-note').textContent = tooClose ? 'Trop près du vent : pas de réglage conseillé.' : 'Les conseils s’affichent dès que le vent et son angle sont connus.';
     const av = avecTesReglages(rr);
-    $('r-avec').hidden = av == null;
-    if (av != null) $('r-avec').textContent = 'Avec tes réglages : ' + fr(av, 1) + ' nds (' + (av - rr.V >= -0.05 ? 'au mieux' : '−' + fr(rr.V - av, 1) + ' nd') + ')';
+    $('r-avec').hidden = av == null || !r0;
+    if (av != null && r0) {
+      $('r-avv').textContent = fr(av.V, 1);
+      $('r-ave').textContent = av.V - r0.V >= -0.05 ? 'au mieux' : '−' + fr(r0.V - av.V, 1) + ' nd';
+      $('r-avp').textContent = 'gîte ' + Math.round(av.phi) + '° · barre ' + Math.round(av.helm) + '°';
+    }
     if (rr) {
       if (rr.next === undefined) { rr.next = null; setTimeout(() => { rr.next = prochain(rr); render(); }, 60); }
       $('r-next').hidden = !rr.next; $('r-nexttxt').textContent = rr.next || '';
@@ -232,7 +238,7 @@
     if (a.startsWith('man-')) {   // la pastille : manuel → auto ; auto → manuel sur la valeur conseillée
       const k = a.slice(4);
       if (S.man[k]) delete S.man[k];
-      else if (dernier) prendre(k, VERS[k](dernier.c));
+      else if (dernier) prendre(k, VERS[k](dernier.c));   // valeur conseillée, adaptée aux autres réglages forcés
     } else if (/^\w+=-?\d+$/.test(a)) { const [k, v] = a.split('='); prendre(k, +v); }   // ris 0-1-2, repères du génois et du chariot
     else if (a === 'auto') { S.man = {}; }
     else if (/^hdg[-+]\d+$/.test(a)) { const d = parseInt(a.slice(3), 10); S.hdgSet = ((Math.round(S.hdgSet != null ? S.hdgSet : c.hdg != null ? c.hdg : 0) + d) % 360 + 360) % 360; }
@@ -267,7 +273,7 @@
   function fermerPlein() { $('v-boat').hidden = true; if (plein) { plein.remove(); plein = null; } render(); }   // la vue 3D est libérée : batterie
   function pleinMaj() {
     if (!plein) return;
-    const c = conditions(), r = dernier, A = c.twa != null ? Math.abs(c.twa) : null, gm = c.v.xdr_heel;
+    const c = conditions(), r = dernier0, A = c.twa != null ? Math.abs(c.twa) : null, gm = c.v.xdr_heel;
     $('pl-tw').textContent = c.tws != null ? fr(c.tws, 0) + ' nds' + (A != null ? ' · ' + Math.round(A) + '° ' + (c.twa >= 0 ? 'tribord' : 'bâbord') : '') : '–';
     $('pl-heellab').textContent = gm != null ? 'Gîte' : 'Gîte (modèle)';
     $('pl-heel').textContent = gm != null ? Math.round(Math.abs(gm)) + '°' : r ? Math.round(r.phi) + '°' : '–';

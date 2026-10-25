@@ -127,6 +127,11 @@ a{color:var(--accent)}
 .vit span{font-size:12px;color:var(--ink2)}
 .vit b{font-family:var(--fc);font-weight:600;font-size:48px;line-height:.95}
 .vit b.cible{color:var(--accent)}
+.avec{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:4px;padding:8px 10px;border-radius:10px;background:var(--bg);border:1px solid var(--ink2)}
+.avec span{display:block;font-size:12px;color:var(--ink2)}
+.avec b{display:block;font-family:var(--fc);font-weight:600;font-size:36px;line-height:1}
+.avd{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.avd b{font-size:24px;color:var(--accent)}
 .rg{display:flex;flex-direction:column;gap:3px;padding:6px 0;border-top:1px solid var(--line)}
 .rg:first-child{border-top:0}
 .rg.off .rn,.rg.off .imp{color:var(--ink2)}
@@ -256,7 +261,7 @@ a{color:var(--accent)}
     <div class="card" style="padding:8px 14px;display:flex;flex-direction:column;gap:4px">
       <div class="vit"><div data-leg="r-vm"><span id="r-vmlab">Vitesse réelle</span><b id="r-vm">–</b></div><div data-leg="r-vc"><span>Vitesse max théorique</span><b class="cible" id="r-vc">–</b></div></div>
       <span class="note" id="r-phi" data-leg="r-phi"></span>
-      <span class="note" id="r-avec" hidden data-leg="r-avec"></span>
+      <div class="avec" id="r-avec" hidden data-leg="r-avec"><div><span>Avec tes réglages</span><b id="r-avv">–</b></div><div class="avd"><b id="r-ave"></b><span id="r-avp"></span></div></div>
       <span class="note" id="r-calc" hidden>Calcul du modèle…</span>
     </div>
     <div class="card" style="padding:6px 14px 4px">
@@ -609,9 +614,9 @@ const LEGENDES = {
   'i-heel': ['Gîte', "Inclinaison du bateau sur le côté, mesurée par le B&G. À quai, elle indique déjà 3 à 4° : étalonnage à faire sur le Vulcan."],
   'r-rose': ['Vent sur le bateau', "Le bateau vu de dessus, étrave en haut. Flèche bleue : vent réel (TWA). Flèche jaune : vent apparent (AWA), celui que reçoivent les voiles. Secteur rouge : trop près du vent (moins de 40° du vent réel)."],
   'r-vm': ['Vitesse réelle', "STW (Speed Through Water) : vitesse surface lue sur le loch du B&G. Sans B&G : SOG (Speed Over Ground), vitesse fond du GPS de l'iPhone, courant compris."],
-  'r-vc': ['Vitesse max théorique', "Vitesse que prévoit le modèle du simulateur pour ce vent et cet angle, voiles réglées comme conseillé, dans la mer formée par ce vent. Si tu as choisi à la main le ris, le génois, le pataras ou les chariots de génois, elle est calculée avec ton choix. Au près, le modèle est encore 20 à 45 % trop rapide par rapport à tes repères (4,5 nœuds par 15 nœuds) : prends-la comme un ordre de grandeur."],
-  'r-phi': ['Gîte et barre', "Gîte et angle de barre que prévoit le modèle avec ces réglages ; entre parenthèses, la gîte mesurée par le B&G."],
-  'r-avec': ['Avec tes réglages', "Vitesse que prévoit le modèle avec les écoutes, le chariot de GV et le hale-bas que tu as mis à la main, les autres réglages restant ceux du conseil. L'écart avec la vitesse max théorique dit ce que tes réglages coûtent selon le modèle."],
+  'r-vc': ['Vitesse max théorique', "Vitesse que prévoit le modèle du simulateur pour ce vent et cet angle, voiles réglées comme conseillé, dans la mer formée par ce vent. Elle suppose tous les réglages au mieux, même si tu en as forcé : ce que donnent tes réglages est dans le cadre « Avec tes réglages ». Au près, le modèle est encore 20 à 45 % trop rapide par rapport à tes repères (4,5 nœuds par 15 nœuds) : prends-la comme un ordre de grandeur."],
+  'r-phi': ['Gîte et barre au mieux', "Gîte et angle de barre que prévoit le modèle avec tous les réglages au mieux (en auto), et la gîte mesurée par le B&G. Avec tes réglages forcés, elles sont dans le cadre « Avec tes réglages »."],
+  'r-avec': ['Avec tes réglages', "Vitesse, gîte et barre que prévoit le modèle avec tout ce que tu as forcé à la main ; les réglages restés en auto suivent le conseil adapté à tes choix. L'écart avec la vitesse max théorique dit ce que tes réglages coûtent selon le modèle."],
   'r-expert': ['Mode expert', "Pour chaque réglage, la perte de vitesse si on le met au pire, les autres restant au mieux. Sous 0,05 nœud, il est indifférent. Le modèle conseille encore le pataras toujours relâché : écart connu, à corriger."],
   'r-next': ['Prochain changement', "Cherché en faisant forcir le vent nœud par nœud, à l'angle actuel. Le modèle conseille encore le ris trop tard : il ignore la barre et les rafales, alors que tu prends un ris vers 20 nœuds."],
   'i-depth': ['Profondeur', "Hauteur d'eau sous la sonde du sondeur, sans correction (aucun décalage réglé sur le Vulcan). Sous la quille, avec 1,87 m de tirant d'eau, il y en a moins."]
