@@ -8,7 +8,8 @@ Appli de navigation et journal de bord d'O'Tacquet (Bavaria 31 Cruiser de Jéré
 
 ## Structure
 - `www/` : l'appli (une page `index.html`, `trace.js` moteur de trace, `nmea.js` lecteur NMEA 0183, `vendor/leaflet`). Publiée telle quelle sur https://t0staki.github.io/otacquet-navigation/ par `.github/workflows/pages.yml` après les tests.
-- `ios/` : projet Xcode généré par Capacitor. Le module natif « Bord » est à la fin de `ios/App/App/AppDelegate.swift` (TCP vers le B&G, GPS écran verrouillé, partage de fichier) ; le contrôleur `OTViewController` l'enregistre (Main.storyboard pointe dessus). Autorisations dans `Info.plist` (localisation, réseau local, mode d'arrière-plan « location »).
+- `ios/` : projet Xcode généré par Capacitor. Le module natif « Bord » est à la fin de `ios/App/App/AppDelegate.swift` (TCP vers le B&G, GPS écran verrouillé, partage de fichier) ; le contrôleur `OTViewController` l'enregistre. Attention : avec Capacitor 8, c'est `SceneDelegate.swift` qui crée l'écran (pas le storyboard) ; il doit instancier `OTViewController()`, sinon « Bord » n'existe pas.
+- Côté page, `Capacitor.registerPlugin` vient de `www/vendor/capacitor/capacitor.js` (copie de `@capacitor/core/dist/capacitor.js`, à recopier si on change de version de Capacitor) ; sans lui, le script plante au démarrage sur l'iPhone. Autorisations dans `Info.plist` (localisation, réseau local, mode d'arrière-plan « location »).
 - `design/` : sources de la maquette 3 (écrans Réglages, plein écran, journal), référence visuelle et données.
 - `tests/` : `node tests/trace.test.js && node tests/nmea.test.js` (ou `npm test`). `tests/trames.txt` : phrases réelles du Vulcan, positions remplacées par 48° N 3° O.
 
@@ -23,6 +24,6 @@ Appli de navigation et journal de bord d'O'Tacquet (Bavaria 31 Cruiser de Jéré
 
 ## Où en est le projet (25/10/2026)
 - V0.1 web : trace GPS, carte OSM + OpenSeaMap, journal, cumul de saison, GPX.
-- V0.2 : appli iPhone (Capacitor) avec lecture du B&G, instruments, échantillon toutes les 5 s pendant l'enregistrement, export CSV. Swift non compilé à la création (pas de Mac) : première compilation à faire dans Xcode.
+- V0.2 : appli iPhone (Capacitor) avec lecture du B&G, instruments, échantillon toutes les 5 s pendant l'enregistrement, export CSV. Compilée et installée sur l'iPhone 15 Pro le 25/10/2026 : GPS natif vérifié (autorisation, positions chaque seconde) ; lecture du B&G à vérifier à bord.
 - Suite, dans l'ordre validé par Jérémie : écran Réglages (maquette 3 « O'Tacquet en navigation », artifact Design) branché sur le B&G et sur le moteur du simulateur (dépôt `T0staki/simulateur-voile_v0`, objet `PHY`) ; plein écran 3D ; journal enrichi ; partage avec les proches (Supabase envisagé ; Anne-Laure sur Android suit en web).
 - Documents de conception : `docs/notes/version-navigation.md` du dépôt privé du simulateur (`T0staki/simulateur-voile_v0`, avec son propre CLAUDE.md : préférences de Jérémie, contexte, historique complet). Pour travailler sur les deux, cloner les deux dépôts côte à côte dans un même dossier et lancer Claude Code dans ce dossier.
