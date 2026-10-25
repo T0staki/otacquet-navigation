@@ -1,0 +1,17 @@
+{
+  "name": "otacquet-navigation",
+  "version": "0.2.0",
+  "private": true,
+  "description": "O'Tacquet en mer : appli de navigation et journal de bord (web et iPhone)",
+  "scripts": {
+    "test": "node tests/trace.test.js && node tests/nmea.test.js",
+    "ios": "npx cap sync ios && npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.2",
+    "@capacitor/ios": "8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2"
+  }
+}

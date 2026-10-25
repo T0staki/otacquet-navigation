@@ -2,7 +2,7 @@
 // tests/trames.txt : phrases relevées sur O'Tacquet le 25/10/2026, positions remplacées par une position fictive (48° N, 3° O) ;
 // les deux phrases MWV « R » (vent apparent) sont fabriquées pour le test (le relevé n'en montrait pas).
 const fs = require('fs'), path = require('path');
-const { parse, checksumOk, Bord } = require('../nmea.js');
+const { parse, checksumOk, Bord } = require('../www/nmea.js');
 let fail = 0;
 const ok = (c, m) => { console.log((c ? 'ok    ' : 'ÉCHEC ') + m); if (!c) fail++; };
 const L = fs.readFileSync(path.join(__dirname, 'trames.txt'), 'utf8').trim().split('\n');

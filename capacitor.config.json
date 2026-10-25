@@ -1,0 +1,6 @@
+{
+  "appId": "io.github.t0staki.otacquet",
+  "appName": "O'Tacquet",
+  "webDir": "www",
+  "ios": { "contentInset": "never", "backgroundColor": "#EEF2F3" }
+}

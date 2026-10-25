@@ -12,3 +12,15 @@ Installation sur iPhone : ouvrir le site dans Safari, puis Partager › Sur l'é
 Tests : `node tests/trace.test.js`.
 
 À venir : réglages et plein écran du bateau (moteur du simulateur), données du B&G, partage avec les proches.
+
+## Appli iPhone (Capacitor)
+
+Sur le Mac, une fois :
+1. `git clone https://github.com/T0staki/otacquet-navigation && cd otacquet-navigation`
+2. `npm install`
+3. `npx cap sync ios && npx cap open ios`
+4. Dans Xcode : cible **App** › **Signing & Capabilities** › **Team** : ton identifiant Apple (équipe personnelle).
+5. iPhone branché, mode développeur activé (Réglages › Confidentialité et sécurité › Mode développeur), choisis l'iPhone en haut de Xcode, puis ▶︎.
+6. Au premier lancement, sur l'iPhone : Réglages › Général › VPN et gestion de l'appareil › faire confiance au développeur.
+
+Avec un identifiant Apple gratuit, l'appli reste installée 7 jours : relancer ▶︎ depuis Xcode pour la renouveler.

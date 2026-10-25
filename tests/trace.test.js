@@ -1,5 +1,5 @@
 // Tests du moteur de trace : node tests/trace.test.js
-const { Trace, season, NM } = require('../trace.js');
+const { Trace, season, NM } = require('../www/trace.js');
 let fail = 0;
 const ok = (c, m) => { console.log((c ? 'ok    ' : 'ÉCHEC ') + m); if (!c) fail++; };
 let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };

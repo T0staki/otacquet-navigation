@@ -13,7 +13,7 @@
 <title>O'Tacquet en mer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <style>
 /* Instrument de bord, lisible en plein soleil : fond gris d'écume, encre presque noire, un seul accent (orange de balisage). */
 :root{--bg:#EEF2F3;--card:#FFFFFF;--ink:#0D1417;--ink2:#4B575C;--line:#D3DADD;--accent:#B83A0B;--onaccent:#FFFFFF;--sea:#CFE3EA;--rec:#C8281E;
@@ -73,6 +73,12 @@ input.name{width:100%;height:44px;border-radius:10px;border:1px solid var(--line
 .endbox{display:flex;flex-direction:column;gap:8px}
 .row{display:flex;gap:8px;align-items:center}
 .row>*{flex:1}
+.inst{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.inst .cell b{font-size:22px}
+.inst .cell b small{font-size:13px}
+.bg{display:flex;flex-direction:column;gap:8px}
+.bg .row input{height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:16px;padding:0 10px;min-width:0}
+.chip.ok .dot{background:#1F8A4C}
 .dbg{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--ink2);white-space:pre-wrap}
 a{color:var(--accent)}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
@@ -85,7 +91,10 @@ a{color:var(--accent)}
 <section class="view on" id="v-rec" aria-label="Navigation en cours">
   <div class="top">
     <div><h1>O'Tacquet</h1><div class="sub" id="gps-state">GPS en attente</div></div>
-    <span class="chip" id="rec-chip"><span class="dot off" id="rec-dot"></span><span id="rec-txt">À quai</span></span>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="chip" id="bg-chip" hidden aria-expanded="false" aria-controls="bg-panel"><span class="dot off" id="bg-dot"></span><span id="bg-txt">B&amp;G</span></button>
+      <span class="chip" id="rec-chip"><span class="dot off" id="rec-dot"></span><span id="rec-txt">À quai</span></span>
+    </div>
   </div>
   <div class="map" id="map-wrap">
     <div id="map" style="position:absolute;inset:0"></div>
@@ -101,6 +110,21 @@ a{color:var(--accent)}
       <div class="cell"><span>Moyenne</span><b id="s-avg">– <small>nds</small></b></div>
       <div class="cell"><span>Pointe</span><b id="s-peak">– <small>nds</small></b></div>
       <div class="cell"><span>Route fond</span><b id="s-cog">–</b></div>
+    </div>
+    <div class="inst" id="inst" hidden>
+      <div class="cell"><span>Loch</span><b id="i-stw">–</b></div>
+      <div class="cell"><span>Vent réel</span><b id="i-tw">–</b></div>
+      <div class="cell"><span>Vent apparent</span><b id="i-aw">–</b></div>
+      <div class="cell"><span>Cap</span><b id="i-hdg">–</b></div>
+      <div class="cell"><span>Gîte</span><b id="i-heel">–</b></div>
+      <div class="cell"><span>Fond</span><b id="i-depth">–</b></div>
+    </div>
+    <div class="card bg" id="bg-panel" hidden>
+      <div class="label">Instruments B&amp;G (Wi-Fi)</div>
+      <div class="row"><input id="bg-host" inputmode="decimal" autocomplete="off" aria-label="Adresse du Vulcan" value="192.168.76.1"><input id="bg-port" inputmode="numeric" aria-label="Port" value="10110" style="flex:0 0 90px"></div>
+      <div class="btns"><button class="btn" id="bg-off">Couper</button><button class="btn main" id="bg-on">Connecter</button></div>
+      <p class="note" id="bg-note" style="margin:0">Point d'accès du Vulcan : 192.168.76.1. Si le Vulcan rejoint le partage de connexion de l'iPhone, son adresse commence par 172.20.10 (Réseau › NMEA0183 › Sans fil sur le Vulcan).</p>
+      <p class="dbg" id="bg-dbg" style="margin:0"></p>
     </div>
     <div class="warn" id="lock-warn" hidden></div>
     <div class="btns" id="ctl-idle"><button class="btn go" id="b-start">Démarrer l'enregistrement</button></div>
@@ -138,8 +162,9 @@ a{color:var(--accent)}
 </nav>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="vendor/leaflet/leaflet.js"></script>
 <script src="trace.js"></script>
+<script src="nmea.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -192,11 +217,21 @@ $('b-center').onclick = () => { follow = true; $('b-center').hidden = true; if (
 /* ---------- Enregistrement ---------- */
 let tr = null, watch = null, rec = { state: 'idle' }, last = null, raw = 0, wake = null, tick = null, hiddenAt = 0, gaps = [];
 async function keepAwake() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible') { wake = await navigator.wakeLock.request('screen'); } } catch (e) { wake = null; } }
+const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const Bord = NATIVE ? window.Capacitor.registerPlugin('Bord') : null;
+let nativeGps = false;
 function gpsOn() {
+  if (NATIVE) {
+    if (!nativeGps) { nativeGps = true; Bord.startLocation().catch(e => { $('gps-state').textContent = 'GPS : ' + (e.message || e); }); }
+    return;
+  }
   if (!('geolocation' in navigator)) { $('gps-state').textContent = 'Pas de GPS dans ce navigateur'; return; }
   watch = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
 }
-function gpsOff() { if (watch != null) navigator.geolocation.clearWatch(watch); watch = null; }
+function gpsOff() {
+  if (NATIVE) { return; }   // dans l'appli, le GPS reste allumé pour la carte ; il ne tourne écran verrouillé que si l'enregistrement est en cours (voir visibilité)
+  if (watch != null) navigator.geolocation.clearWatch(watch); watch = null;
+}
 function onErr(e) {
   const m = { 1: 'GPS refusé : autorise la localisation pour Safari (Réglages › Confidentialité › Service de localisation)', 2: 'Position indisponible', 3: 'GPS lent à répondre' };
   $('gps-state').textContent = m[e.code] || 'Erreur GPS';
@@ -232,12 +267,30 @@ function setState(st) {
   $('rec-txt').textContent = st === 'run' ? 'Enregistrement' : st === 'pause' ? 'En pause' : st === 'end' ? 'Terminé' : 'À quai';
   $('b-pause').textContent = st === 'pause' ? 'Reprendre' : 'Pause';
 }
-async function saveLive() { if (tr && rec.state !== 'idle') { try { await DB.live({ id: rec.id, start: rec.start, pts: tr.pts, gaps }); } catch (e) {} } }
+/* Instruments du bord (appli iPhone) : B&G par le Wi-Fi, échantillon toutes les 5 s pendant l'enregistrement. */
+const bord = window.Nmea ? new window.Nmea.Bord() : null; let ins = [], insLast = 0, bgState = '';
+const INS_KEYS = ['stw', 'tws', 'twa', 'twd', 'aws', 'awa', 'heading', 'xdr_heel', 'xdr_trim', 'depth', 'sog', 'cog'];
+function sampleIns(now) {
+  if (!bord || rec.state !== 'run' || now - insLast < 5000) return;
+  const v = bord.now(5000, now); if (!Object.keys(v).length) return;
+  insLast = now; const row = [now]; for (const k of INS_KEYS) row.push(v[k] != null ? Math.round(v[k] * 10) / 10 : null); ins.push(row);
+}
+function showIns() {
+  if (!bord) return; const v = bord.now(5000), side = a => a == null ? '' : (a >= 0 ? ' Td' : ' Bd'), deg = a => a == null ? '–' : Math.round(Math.abs(a)) + '°';
+  const any = Object.keys(v).length > 0; $('inst').hidden = !any && !NATIVE;
+  $('i-stw').innerHTML = v.stw != null ? fr(v.stw, 1) + ' <small>nds</small>' : '–';
+  $('i-tw').innerHTML = v.tws != null ? fr(v.tws, 0) + ' <small>nds</small> ' + (v.twa != null ? deg(v.twa) : '') : '–';
+  $('i-aw').innerHTML = v.aws != null ? fr(v.aws, 0) + ' <small>nds</small> ' + deg(v.awa) : '–';
+  $('i-hdg').textContent = v.heading != null ? String(Math.round(v.heading)).padStart(3, '0') + '°' : '–';
+  $('i-heel').textContent = v.xdr_heel != null ? deg(v.xdr_heel) + side(v.xdr_heel) : '–';
+  $('i-depth').innerHTML = v.depth != null ? fr(v.depth, 1) + ' <small>m</small>' : '–';
+}
+async function saveLive() { if (tr && rec.state !== 'idle') { try { await DB.live({ id: rec.id, start: rec.start, pts: tr.pts, gaps, ins }); } catch (e) {} } }
 async function start(resume) {
   initMap();
-  if (!resume) { tr = new J.Trace(); rec = { id: Date.now(), start: Date.now(), state: 'run' }; gaps = []; line && line.setLatLngs([]); }
+  if (!resume) { tr = new J.Trace(); rec = { id: Date.now(), start: Date.now(), state: 'run' }; gaps = []; ins = []; line && line.setLatLngs([]); }
   setState('run'); follow = true; gpsOn(); keepAwake();
-  clearInterval(tick); tick = setInterval(() => { show(); }, 1000);
+  clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); }, 1000);
   clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000);
 }
 $('b-start').onclick = () => start(false);
@@ -249,7 +302,8 @@ $('b-save').onclick = async () => {
   const s = tr.stats();
   const trip = { id: rec.id, name: ($('i-name').value || 'Sortie').trim(), start: s.points ? s.start : rec.start, end: s.points ? s.end : Date.now(),
     stats: { distanceNM: s.distanceNM, durationS: s.durationS, movingS: s.movingS, avgKn: s.avgKn, peakKn: s.peakKn, points: s.points, rejected: s.rejected, raw }, gaps,
-    pts: tr.pts.map(p => [p.t, +p.lat.toFixed(6), +p.lon.toFixed(6), p.acc != null ? Math.round(p.acc) : null]) };
+    pts: tr.pts.map(p => [p.t, +p.lat.toFixed(6), +p.lon.toFixed(6), p.acc != null ? Math.round(p.acc) : null]),
+    insKeys: INS_KEYS, ins };
   await DB.put(trip); await DB.live(null);
   tr = null; rec = { state: 'idle' }; setState('idle'); line && line.setLatLngs([]); gpsOn(); show();
   openLog();
@@ -257,7 +311,7 @@ $('b-save').onclick = async () => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); saveLive(); }
   else {
-    if (rec.state === 'run' && hiddenAt && Date.now() - hiddenAt > 30000) {
+    if (!NATIVE && rec.state === 'run' && hiddenAt && Date.now() - hiddenAt > 30000) {
       const g = { from: hiddenAt, to: Date.now() }; gaps.push(g);
       const w = $('lock-warn'); w.hidden = false;
       w.textContent = 'Trace interrompue ' + durLong((g.to - g.from) / 1000) + ' (écran verrouillé ou appli quittée) : la distance de ce trou est comptée en ligne droite.';
@@ -311,14 +365,25 @@ async function openTrip(id) {
     <div class="cell"><span>Départ</span><b>${hm(t.start)}</b></div>
    </div>
    ${t.gaps && t.gaps.length ? `<p class="warn">${t.gaps.length} interruption(s) de la trace, écran verrouillé.</p>` : ''}
-   <div class="btns"><button class="btn" id="b-gpx">Exporter en GPX</button><button class="btn" id="b-del">Supprimer</button></div>
+   <div class="btns"><button class="btn" id="b-gpx">Exporter en GPX</button><button class="btn" id="b-csv" ${t.ins && t.ins.length ? '' : 'disabled'}>Instruments (CSV)</button></div>
+   <div class="btns"><button class="btn" id="b-del" style="grid-column:1/-1">Supprimer</button></div>
    <div id="del-confirm" hidden class="card"><p style="margin:0 0 8px">Supprimer définitivement cette sortie de ce téléphone ?</p><div class="btns"><button class="btn" id="b-del-no">Garder</button><button class="btn main" id="b-del-yes">Supprimer</button></div></div>
    <p class="dbg">${s.points} points gardés sur ${s.raw || '?'} reçus du GPS · ${s.rejected} écartés (imprécis ou sauts)</p>`;
+  const base = t.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'sortie';
+  const save = (nom, contenu, type) => {
+    if (NATIVE) return Bord.share({ nom, contenu }).catch(() => {});
+    const blob = new Blob([contenu], { type }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = nom; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  };
   $('b-gpx').onclick = () => {
     const tt = J.Trace.fromPoints(t.pts.map(p => ({ t: p[0], lat: p[1], lon: p[2], acc: p[3] })), { minStep: 0, maxAcc: 1e9, maxKn: 1e9 });
-    const blob = new Blob([tt.toGPX(t.name)], { type: 'application/gpx+xml' }), a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = t.name.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') + '.gpx'; document.body.appendChild(a); a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    save(base + '.gpx', tt.toGPX(t.name), 'application/gpx+xml');
+  };
+  $('b-csv').onclick = () => {
+    const keys = t.insKeys || INS_KEYS, head = ['heure_utc'].concat(keys).join(';');
+    const rows = (t.ins || []).map(r => [new Date(r[0]).toISOString()].concat(r.slice(1).map(x => x == null ? '' : String(x).replace('.', ','))).join(';'));
+    save(base + '-instruments.csv', head + '\n' + rows.join('\n') + '\n', 'text/csv');
   };
   $('b-del').onclick = () => { $('del-confirm').hidden = false; };
   $('b-del-no').onclick = () => { $('del-confirm').hidden = true; };
@@ -341,13 +406,34 @@ $('t-log').onclick = () => openLog();
   try {
     const lv = await DB.getLive();
     if (lv && lv.pts && lv.pts.length) {
-      tr = J.Trace.fromPoints([]); tr.pts = lv.pts; rec = { id: lv.id, start: lv.start, state: 'pause' }; gaps = lv.gaps || [];
+      tr = J.Trace.fromPoints([]); tr.pts = lv.pts; rec = { id: lv.id, start: lv.start, state: 'pause' }; gaps = lv.gaps || []; ins = lv.ins || [];
       if (line) line.setLatLngs(lv.pts.map(p => [p.lat, p.lon]));
       const w = $('lock-warn'); w.hidden = false; w.textContent = 'Enregistrement interrompu retrouvé (' + fr(tr.stats().distanceNM, 2) + ' M depuis ' + hm(lv.start) + ') : reprends-le ou termine-le.';
-      setState('pause'); clearInterval(tick); tick = setInterval(show, 1000); clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000); show();
+      setState('pause'); clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); }, 1000); clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000); show();
     }
   } catch (e) {}
 })();
+/* ---------- Appli iPhone : GPS natif et B&G ---------- */
+if (NATIVE) {
+  $('rec-note').textContent = 'Dans l\'appli, l\'enregistrement continue écran verrouillé (indicateur bleu de localisation).';
+  $('bg-chip').hidden = false; $('inst').hidden = false;
+  Bord.addListener('position', d => onPos({ timestamp: d.t, coords: { latitude: d.lat, longitude: d.lon, accuracy: d.acc, speed: d.sog != null ? d.sog / J.MS_TO_KN : null, heading: d.cog != null ? d.cog : null } }));
+  Bord.addListener('etatgps', d => { if (d.etat === 'refuse') $('gps-state').textContent = 'GPS refusé : Réglages › O\'Tacquet › Position'; });
+  Bord.addListener('nmea', d => { bord.feed(d.lignes); $('bg-dbg').textContent = bord.n + ' phrases lues · ' + bord.bad + ' rejetées'; });
+  Bord.addListener('etat', d => {
+    bgState = d.etat; const ok = d.etat === 'connecte';
+    $('bg-chip').classList.toggle('ok', ok); $('bg-dot').className = 'dot' + (ok ? '' : ' off');
+    $('bg-txt').textContent = ok ? 'B&G' : d.etat === 'arrete' ? 'B&G coupé' : 'B&G…';
+    if (d.erreur) $('bg-dbg').textContent = 'B&G : ' + d.etat + ' (' + d.erreur + ')';
+  });
+  const getLS = (k, v) => { try { return localStorage.getItem(k) || v; } catch (e) { return v; } }, setLS = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  $('bg-host').value = getLS('bg-host', '192.168.76.1'); $('bg-port').value = getLS('bg-port', '10110');
+  const bgConnect = () => { setLS('bg-host', $('bg-host').value.trim()); setLS('bg-port', $('bg-port').value.trim()); Bord.connect({ host: $('bg-host').value.trim(), port: parseInt($('bg-port').value, 10) || 10110 }); };
+  $('bg-on').onclick = bgConnect; $('bg-off').onclick = () => Bord.disconnect();
+  $('bg-chip').onclick = () => { const p = $('bg-panel'); p.hidden = !p.hidden; $('bg-chip').setAttribute('aria-expanded', String(!p.hidden)); };
+  bgConnect();
+  setInterval(showIns, 1000);
+}
 window.__app = { DB, onPos: p => onPos(p), state: () => rec.state, stats: () => tr && tr.stats() };
 </script>
 </body>
