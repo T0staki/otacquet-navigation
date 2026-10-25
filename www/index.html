@@ -159,13 +159,12 @@ a{color:var(--accent)}
     <div class="grid">
       <div class="cell"><span>Distance</span><b id="s-dist">0,00 <small>M</small></b></div>
       <div class="cell"><span>Durée</span><b id="s-dur">0:00</b></div>
-      <div class="cell"><span>Vitesse</span><b id="s-sog">– <small>nds</small></b></div>
+      <div class="cell"><span>SOG</span><b id="s-sog">– <small>nds</small></b></div>
       <div class="cell"><span>Moyenne</span><b id="s-avg">– <small>nds</small></b></div>
       <div class="cell"><span>Pointe</span><b id="s-peak">– <small>nds</small></b></div>
-      <div class="cell"><span>Route fond</span><b id="s-cog">–</b></div>
     </div>
     <div class="inst" id="inst" hidden>
-      <div class="cell"><span>Loch</span><b id="i-stw">–</b></div>
+      <div class="cell"><span>STW</span><b id="i-stw">–</b></div>
       <div class="cell"><span>Vent réel</span><b id="i-tw">–</b></div>
       <div class="cell"><span>Vent apparent</span><b id="i-aw">–</b></div>
       <div class="cell"><span>Cap</span><b id="i-hdg">–</b></div>
@@ -370,7 +369,6 @@ function show() {
   $('s-sog').innerHTML = (sog != null ? fr(sog, 1) : '–') + ' <small>nds</small>';
   $('s-avg').innerHTML = (s && s.avgKn ? fr(s.avgKn, 1) : '–') + ' <small>nds</small>';
   $('s-peak').innerHTML = (s && s.peakKn && s.movingS > 30 ? fr(s.peakKn, 1) : '–') + ' <small>nds</small>';
-  $('s-cog').textContent = last && last.cog != null && sog > 0.5 ? String(Math.round(last.cog)).padStart(3, '0') + '°' : '–';
 }
 function setState(st) {
   rec.state = st;
@@ -555,11 +553,10 @@ if (NATIVE) {
 const LEGENDES = {
   's-dist': ['Distance', "Milles parcourus depuis le début de l'enregistrement, mesurés sur la trace GPS lissée : le bruit des positions à l'arrêt n'est pas compté."],
   's-dur': ['Durée', "Temps écoulé depuis le début de l'enregistrement, pauses comprises."],
-  's-sog': ['Vitesse', "Vitesse fond donnée par le GPS de l'iPhone : vitesse par rapport au fond, courant compris."],
+  's-sog': ['SOG', "Speed Over Ground, vitesse fond donnée par le GPS de l'iPhone : vitesse par rapport au fond, courant compris."],
   's-avg': ['Moyenne', "Distance divisée par le temps passé en mouvement (au-dessus de 0,5 nœud) : les arrêts ne la font pas baisser."],
   's-peak': ['Pointe', "Meilleure vitesse fond moyenne sur 30 secondes depuis le début de l'enregistrement. Elle s'affiche après 30 secondes en mouvement."],
-  's-cog': ['Route fond', "Direction réelle du déplacement sur le fond, donnée par le GPS, en degrés vrais. Elle s'écarte du cap quand il y a du courant ou de la dérive. Affichée au-dessus de 0,5 nœud."],
-  'i-stw': ['Loch', "Vitesse surface : vitesse du bateau par rapport à l'eau, mesurée par le loch du B&G. Sans courant, elle est égale à la vitesse fond."],
+  'i-stw': ['STW', "Speed Through Water, vitesse surface : vitesse du bateau par rapport à l'eau, mesurée par le loch du B&G. Sans courant, elle est égale à la vitesse fond."],
   'i-tw': ['Vent réel', "Vent qui souffle vraiment, calculé par le B&G à partir du vent apparent et de la vitesse du bateau : force en nœuds, angle compté depuis l'étrave."],
   'i-aw': ['Vent apparent', "Vent mesuré en tête de mât, celui que reçoivent les voiles : force en nœuds, angle compté depuis l'étrave."],
   'i-hdg': ['Cap', "Direction vers laquelle pointe l'étrave, donnée par le compas du B&G et corrigée de la déclinaison : cap vrai, comparable à la route fond."],
