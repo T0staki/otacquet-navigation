@@ -2,7 +2,7 @@
 
 Appli web de navigation et journal de bord pour O'Tacquet (Bavaria 31 Cruiser), pensée pour l'iPhone, tenu à la main.
 
-- **En mer** : enregistrement de la trace GPS, carte OpenStreetMap avec le balisage OpenSeaMap, distance en milles, durée, vitesse, moyenne, pointe sur 30 s, route fond.
+- **En mer** : enregistrement de la trace GPS, carte littorale SHOM/IGN (OpenStreetMap hors de sa couverture), distance en milles, durée, vitesse, moyenne, pointe sur 30 s, route fond.
 - **Journal** : sorties enregistrées sur le téléphone, cumul de la saison, détail de chaque sortie, export GPX.
 
 Les traces restent sur le téléphone (IndexedDB) : ce dépôt ne contient que le code.

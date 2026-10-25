@@ -23,7 +23,8 @@ Appli de navigation et journal de bord d'O'Tacquet (Bavaria 31 Cruiser de Jéré
 - Connecté au point d'accès du Vulcan, l'iPhone perd internet : piste = le Vulcan rejoint le partage de connexion de l'iPhone (adresse 172.20.10.x), à essayer.
 
 ## Où en est le projet (25/10/2026)
-- V0.1 web : trace GPS, carte OSM + OpenSeaMap, journal, cumul de saison, GPX.
+- V0.1 web : trace GPS, carte, journal, cumul de saison, GPX.
+- Carte (25/10) : carte littorale SHOM/IGN de la Géoplateforme (`GEOGRAPHICALGRIDSYSTEMS.COASTALMAPS`, sans clé, niveaux 6 à 16, « non destinée à la navigation », licence non vérifiée), OSM dessous hors couverture ; OpenSeaMap retiré (doublon, secteurs de feux encombrants). Jérémie n'est « pas convaincu encore » : à retravailler.
 - V0.2 : appli iPhone (Capacitor) avec lecture du B&G, instruments, échantillon toutes les 5 s pendant l'enregistrement, export CSV. Compilée et installée sur l'iPhone 15 Pro le 25/10/2026 : GPS natif vérifié (autorisation, positions chaque seconde) ; lecture du B&G à vérifier à bord.
 - Suite, dans l'ordre validé par Jérémie : écran Réglages (maquette 3 « O'Tacquet en navigation », artifact Design) branché sur le B&G et sur le moteur du simulateur (dépôt `T0staki/simulateur-voile_v0`, objet `PHY`) ; plein écran 3D ; journal enrichi ; partage avec les proches (Supabase envisagé ; Anne-Laure sur Android suit en web).
 - Documents de conception : `docs/notes/version-navigation.md` du dépôt privé du simulateur (`T0staki/simulateur-voile_v0`, avec son propre CLAUDE.md : préférences de Jérémie, contexte, historique complet). Pour travailler sur les deux, cloner les deux dépôts côte à côte dans un même dossier et lancer Claude Code dans ce dossier.
