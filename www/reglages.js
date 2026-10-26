@@ -289,7 +289,11 @@
     const sig = JSON.stringify(m);
     if (sig !== envoi && plein.contentWindow) { plein.contentWindow.postMessage(m, '*'); envoi = sig; }
   }
-  window.addEventListener('message', e => { if (plein && e.source === plein.contentWindow && e.data && e.data.ot === 'diag') console.log('DIAG3D ' + JSON.stringify(e.data)); });
+  window.addEventListener('message', e => {
+    if (!plein || e.source !== plein.contentWindow || !e.data) return;
+    if (e.data.ot === 'diag') console.log('DIAG3D ' + JSON.stringify(e.data));
+    if (e.data.ot === 'appui') $('pl-info').hidden = !$('pl-info').hidden;   // appui court sur la vue 3D : informations affichées ou masquées (glisser et pincer bougent la caméra)
+  });
   window.addEventListener('message', e => { if (plein && e.source === plein.contentWindow && e.data && e.data.ot === 'bateau-pret') { $('pl-load').hidden = true; envoi = ''; pleinMaj(); } });
 
   function prendre(k, v) {
@@ -310,7 +314,6 @@
       $('v-set').addEventListener('change', e => { const k = e.target.dataset && e.target.dataset.k; if (!k) return; touche[k] = false; if (POSE[k]) S.pose[k] = S.val[k]; render(); });
       meteo(); setInterval(meteo, 15 * 60 * 1000);
       setInterval(() => { render(); pleinMaj(); }, 1000);
-      $('pl-tog').addEventListener('click', () => { $('pl-info').hidden = !$('pl-info').hidden; });
       $('v-boat').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) action(b.dataset.act); });
       return true;
     },

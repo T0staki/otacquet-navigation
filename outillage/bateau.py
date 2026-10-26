@@ -26,6 +26,10 @@ window.addEventListener('message',e=>{const d=e.data;if(!d||d.ot!=='bateau')retu
   if(d.furl!=null){FINE.furl=d.furl;setFineMan('furl',true);}else if(FINE.man.furl)setFineMan('furl',false);
 });
 try{parent.postMessage({ot:'bateau-pret'},'*');}catch(e){}
+/* Caméra : glisser tourne autour du bateau, pincer rapproche (gestes du simulateur, vue poursuite) ; un appui court sans bouger affiche ou masque les informations de l'appli */
+{let t0=0,x0=0,y0=0,n=0;canvas.addEventListener('pointerdown',e=>{n++;if(n===1){t0=performance.now();x0=e.clientX;y0=e.clientY;}});
+ const fin=e=>{if(n===1&&performance.now()-t0<300&&Math.hypot(e.clientX-x0,e.clientY-y0)<10){try{parent.postMessage({ot:'appui'},'*');}catch(_){}}n=Math.max(0,n-1);};
+ canvas.addEventListener('pointerup',fin);canvas.addEventListener('pointercancel',()=>{n=Math.max(0,n-1);t0=0;});}
 /* Diagnostic du rendu (#diag=1, version de mesure de l'appli) : chronomètre chaque étape d'une image et enchaîne des essais de 8 s
    (ombres, transparence de l'eau, interface masquée, résolution). Ne change ni les calculs ni le dessin en dehors des essais. */
 if(HASH.diag==='1'){(()=>{

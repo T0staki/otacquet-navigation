@@ -90,7 +90,6 @@ a{color:var(--accent)}
 /* Plein écran (maquette 3, « Bateau ») : couleurs fixes, le fond est la mer en 3D */
 .plein{position:fixed;inset:0;z-index:900;background:#0B2A3A;color:#FFFFFF;font-variant-numeric:tabular-nums}
 .pl-load{position:absolute;left:0;right:0;top:45%;text-align:center;color:#C9D3D6;margin:0}
-.pl-tog{position:absolute;inset:0;border:0;background:transparent;padding:0}
 .pl-info{position:absolute;inset:0;pointer-events:none}
 .pl-top{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:16px;right:16px;display:flex;justify-content:space-between}
 .pl-box{display:flex;flex-direction:column;padding:8px 12px;border-radius:14px;background:rgba(6,12,14,.62)}
@@ -294,7 +293,6 @@ a{color:var(--accent)}
 <section class="plein" id="v-boat" hidden aria-label="O'Tacquet en plein écran">
   <div id="pl-3d" style="position:absolute;inset:0"></div>
   <p class="pl-load" id="pl-load">Chargement de la vue 3D…</p>
-  <button class="pl-tog" id="pl-tog" aria-label="Afficher ou masquer les informations"></button>
   <div class="pl-info" id="pl-info">
     <div class="pl-top"><div class="pl-box"><span>TWS · TWA</span><b id="pl-tw">–</b></div><div class="pl-box" style="align-items:flex-end"><span id="pl-heellab">Gîte</span><b id="pl-heel">–</b></div></div>
     <div class="pl-bot">
