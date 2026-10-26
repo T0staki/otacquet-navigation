@@ -36,6 +36,11 @@ try{parent.postMessage({ot:'bateau-pret'},'*');}catch(e){}
 {let t0=0,x0=0,y0=0,n=0;canvas.addEventListener('pointerdown',e=>{n++;if(n===1){t0=performance.now();x0=e.clientX;y0=e.clientY;}});
  const fin=e=>{if(n===1&&performance.now()-t0<300&&Math.hypot(e.clientX-x0,e.clientY-y0)<10){try{parent.postMessage({ot:'appui'},'*');}catch(_){}}n=Math.max(0,n-1);};
  canvas.addEventListener('pointerup',fin);canvas.addEventListener('pointercancel',()=>{n=Math.max(0,n-1);t0=0;});}
+/* iPhone : 30 images par seconde au plus (Jérémie, 26/10/2026) : le diagnostic n° 2 a montré que l'échauffement fait tomber la vue de 60 à 37-40 images/s ;
+   à 30 images/s stables le téléphone chauffe moins et la batterie tient mieux, chaque image est dessinée pareil. Le temps simulé suit l'horloge (dt mesuré).
+   #ips=60 dans l'adresse pour lever la limite (essais). window.__img compte les images dessinées (diagnostic). */
+window.__img=0;{const pas=1000/Math.max(1,+(HASH.ips||30));let der=-1e9;const f0=frame;
+ frame=function(t){if(t-der<pas-4){requestAnimationFrame(frame);return;}der=t;window.__img++;return f0(t);};}
 /* Diagnostic du rendu (#diag=1, version de mesure de l'appli) : chronomètre chaque étape d'une image et enchaîne des essais de 8 s
    (ombres, transparence de l'eau, interface masquée, résolution). Ne change ni les calculs ni le dessin en dehors des essais. */
 if(HASH.diag==='1'){(()=>{
@@ -61,13 +66,13 @@ if(HASH.diag==='1'){(()=>{
     ['sans interface masquée',()=>{sansUI=true;}],['mer masquée',()=>{ocean.visible=false;}],['bateau masqué',()=>{boat.visible=false;}],['résolution ×2',()=>{pr(2);}]];
   const ESSAIS=[R];for(const e of E)ESSAIS.push(e,R);
   const res=[];let i=-1;
-  const mesurer=(nom,suite)=>{for(const k in T)delete T[k];renderer.info.autoReset=false;renderer.info.reset();let n=0,t0=performance.now();
-    const tick=()=>{n++;if(performance.now()-t0<5000)requestAnimationFrame(tick);else{const ms=(performance.now()-t0)/n,o={essai:nom,ips:+(1000/ms).toFixed(1),ms_image:+ms.toFixed(1),appels:Math.round(renderer.info.render.calls/n),pixels:renderer.getPixelRatio()+' × '+innerWidth+'×'+innerHeight,etapes_ms:{}};
+  const mesurer=(nom,suite)=>{for(const k in T)delete T[k];renderer.info.autoReset=false;renderer.info.reset();let n=0,n0=window.__img,t0=performance.now();
+    const tick=()=>{if(performance.now()-t0<5000)requestAnimationFrame(tick);else{n=Math.max(1,window.__img-n0);const ms=(performance.now()-t0)/n,o={essai:nom,ips:+(1000/ms).toFixed(1),ms_image:+ms.toFixed(1),appels:Math.round(renderer.info.render.calls/n),pixels:renderer.getPixelRatio()+' × '+innerWidth+'×'+innerHeight,etapes_ms:{}};
       for(const k of Object.keys(T).sort((a,b)=>T[b]-T[a]))o.etapes_ms[k]=+(T[k]/n).toFixed(2);renderer.info.autoReset=true;suite(o);}};requestAnimationFrame(tick);};
   const ligne=o=>o.essai+' : '+o.ips+' i/s, '+o.ms_image+' ms, '+o.appels+' appels';
   const suivant=()=>{raz();i++;if(i>=ESSAIS.length){
       const phys=res.filter(o=>o.essai==='référence').map(o=>Object.entries(o.etapes_ms).filter(([k])=>k.startsWith('physique')).slice(0,5).map(([k,v])=>k.replace('physique · ','')+' '+v).join(' · '));
-      box.textContent='Diagnostic n° 2 terminé (fais une capture)\n'+res.map(ligne).join('\n')+'\nPhysique (ms), 1re et dernière référence :\n '+phys[0]+'\n '+phys[phys.length-1];
+      box.textContent='Diagnostic n° 2 terminé (fais une capture) · limite '+(+(HASH.ips||30))+' images/s\n'+res.map(ligne).join('\n')+'\nPhysique (ms), 1re et dernière référence :\n '+phys[0]+'\n '+phys[phys.length-1];
       try{parent.postMessage({ot:'diag',fin:true,res},'*');}catch(e){}return;}
     const [nom,f]=ESSAIS[i];f();box.textContent='Diagnostic n° 2 · '+(i+1)+'/'+ESSAIS.length+' : '+nom+'…\n'+res.map(ligne).join('\n');
     setTimeout(()=>mesurer(nom,o=>{res.push(o);try{parent.postMessage({ot:'diag',o},'*');}catch(e){}suivant();}),1500);};
