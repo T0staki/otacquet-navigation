@@ -18,10 +18,11 @@ hook = r"""
 window.__otSheet={main:null,jib:null};
 {const auto0=autoStep;autoStep=function(dt,a){auto0(dt,a);if(window.__otSheet.main!=null)B.main=window.__otSheet.main;if(window.__otSheet.jib!=null)B.jib=window.__otSheet.jib;};}   // écoute réglée à la main dans l'appli : elle reste là où on l'a mise
 window.addEventListener('message',e=>{const d=e.data;if(!d||d.ot!=='bateau')return;
-  const tws0=$('i-tws').value,twd0=$('i-twd').value;
+  const tws0=$('i-tws').value,twd0=$('i-twd').value,gust0=$('i-gust').value;
+  if(d.gust!=null)$('i-gust').value=Math.max(0,Math.min(40,Math.round(d.gust/5)*5));   // rafales annoncées (± %), sans B&G
   if(d.tws!=null)$('i-tws').value=Math.max(3,Math.min(60,Math.round(d.tws)));
   if(d.twd!=null)$('i-twd').value=((Math.round(d.twd/5)*5)%360+360)%360;
-  if(!window.__otCond||$('i-tws').value!==tws0||$('i-twd').value!==twd0){readConds();window.__otCond=1;}   // la mer ne se recalcule que si le vent change (un curseur qu'on glisse envoie beaucoup de messages)
+  if(!window.__otCond||$('i-tws').value!==tws0||$('i-twd').value!==twd0||$('i-gust').value!==gust0){readConds();window.__otCond=1;}   // la mer ne se recalcule que si le vent change (un curseur qu'on glisse envoie beaucoup de messages)
   if(d.twa!=null&&Math.abs(d.twa)>=30&&!window.__otCap){B.h=((S.twd-d.twa)*D2R);window.__otCap=1;}   // premier message : bateau posé au cap TWD − TWA, sur la bonne amure
   if(d.twa!=null&&Math.abs(d.twa)>=30){if(!AP.on)apEngage(true);if(AP.mode!=='vent')setApMode('vent');AP.twa=clamp(Math.round(Math.abs(d.twa)),30,175);AP.side=d.twa>=0?1:-1;}
   if(!AT.on)atEngage(true);

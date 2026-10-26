@@ -30,6 +30,9 @@ button{font-family:inherit;color:inherit}
 .top{padding:calc(env(safe-area-inset-top,0px) + 6px) max(14px,env(safe-area-inset-right,0px)) 6px max(14px,env(safe-area-inset-left,0px));display:flex;align-items:center;justify-content:space-between;gap:10px}
 .top h1{margin:0;font-size:20px;font-weight:600}
 .sub{font-size:12px;color:var(--ink2)}
+.met{display:flex;flex-wrap:wrap;gap:2px 16px;padding:0 max(14px,env(safe-area-inset-right,0px)) 6px max(14px,env(safe-area-inset-left,0px));font-size:15px;font-weight:500}
+.met b{font-family:var(--fc);font-weight:600;font-size:19px}
+.met small{font-size:12px;color:var(--ink2);font-weight:500}
 .map{position:relative;flex:1;min-height:200px;background:var(--sea)}
 .map .leaflet-container{background:var(--sea);font-family:var(--f)}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:10px;background:var(--card);border:1px solid var(--line);font-size:13px;font-weight:600}
@@ -73,9 +76,30 @@ input.name{width:100%;height:44px;border-radius:10px;border:1px solid var(--line
 .endbox{display:flex;flex-direction:column;gap:8px}
 .row{display:flex;gap:8px;align-items:center}
 .row>*{flex:1}
-.inst{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-.inst .cell b{font-size:20px}
-.inst .cell b small{font-size:13px}
+/* Mesures de l'écran Trace : édition comme l'écran d'accueil de l'iPhone (appui long, les cases tremblent, glisser, « − », « + ») */
+.grid .cell{position:relative}
+.grid .cell span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grid .cell b{font-size:22px}
+.grid .cell b small{font-size:13px}
+.cell .moins{display:none;position:absolute;top:-7px;right:-7px;width:24px;height:24px;border-radius:50%;border:0;background:#8E8E93;color:#FFFFFF;font-size:18px;line-height:22px;padding:0;z-index:3}
+.panel.edit .grid .cell[data-k]{animation:tremble .28s infinite alternate ease-in-out;touch-action:none;cursor:grab}
+.panel.edit .grid .cell[data-k]:nth-child(2n){animation-delay:-.14s}
+.panel.edit .cell .moins{display:block}
+@keyframes tremble{from{transform:rotate(-1.2deg)}to{transform:rotate(1.2deg)}}
+@media (prefers-reduced-motion:reduce){.panel.edit .grid .cell[data-k]{animation:none}}
+.grid .cell.drag{animation:none!important;transform:scale(1.07);box-shadow:0 8px 20px rgba(0,0,0,.25);z-index:4}
+.cell.plus{border:1.5px dashed var(--ink2);background:transparent;color:var(--ink2);font:inherit;font-size:15px;justify-content:center;align-items:center;min-height:52px}
+.mes-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px;color:var(--ink2)}
+.mes-bar .btn{flex:0 0 auto;min-width:72px}
+.sheet{position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.35);display:flex;align-items:flex-end}
+.sheet[hidden]{display:none}
+.sheet-box{background:var(--bg);width:100%;max-height:72vh;overflow-y:auto;border-radius:16px 16px 0 0;padding:12px max(14px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 14px) max(14px,env(safe-area-inset-left,0px));display:flex;flex-direction:column}
+.sheet-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.sheet-top .btn{flex:0 0 auto}
+.sheet h3{margin:12px 0 4px;font-size:13px;font-weight:600;color:var(--ink2)}
+.sheet .ajout{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:4px 0;font:inherit;color:inherit}
+.sheet .ajout b{display:block;font-size:15px}
+.sheet .ajout span{font-size:12px;color:var(--ink2)}
 .bg{display:flex;flex-direction:column;gap:8px}
 .bg .row input{height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:16px;padding:0 10px;min-width:0}
 .chip.ok .dot{background:#1F8A4C}
@@ -84,7 +108,7 @@ a{color:var(--accent)}
 :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .handle{display:flex;flex-direction:column;align-items:center;gap:2px;height:30px;justify-content:center;border:0;background:transparent;color:var(--ink2);font-size:12px;flex-shrink:0}
 .handle i{display:block;width:40px;height:5px;border-radius:3px;background:var(--line)}
-.panel.min .grid,.panel.min .inst,.panel.min #bg-panel,.panel.min #rec-note{display:none!important}
+.panel.min .grid,.panel.min .mes-bar,.panel.min #bg-panel,.panel.min #rec-note{display:none!important}
 .legend{position:fixed;z-index:1000;left:12px;right:12px;padding:10px 12px;border-radius:12px;background:var(--ink);color:var(--bg);font-size:14px;line-height:1.35;box-shadow:0 6px 24px rgba(0,0,0,.3);pointer-events:none}
 .legend b{display:block;font-size:15px;margin-bottom:2px}
 /* Plein écran (maquette 3, « Bateau ») : couleurs fixes, le fond est la mer en 3D */
@@ -160,6 +184,12 @@ a{color:var(--accent)}
 .expbtn b{display:block;font-size:15px}
 .expbtn small{font-size:12px;color:var(--ink2)}
 .next{display:flex;align-items:center;gap:8px;min-height:28px;padding:0 4px;font-size:14px}
+.u{font-size:.42em;font-weight:500;letter-spacing:0}
+.cons{margin:2px 0 0;font-size:13px;line-height:1.35}
+.cons b{font-weight:600;color:var(--accent)}
+.cons span{color:var(--ink2);opacity:.75}
+.lof{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:10px 12px;border-radius:12px;border:1.5px solid var(--accent);font-size:14px;line-height:1.35}
+.lof.fort{background:var(--accent);color:#FFFFFF}
 </style>
 </head>
 <body>
@@ -182,24 +212,8 @@ a{color:var(--accent)}
   </div>
   <div class="panel" id="panel">
     <button class="handle" id="b-fold" aria-expanded="true" aria-controls="panel"><i></i><span id="fold-txt">Réduire les mesures</span></button>
-    <div class="grid">
-      <div class="cell"><span>Distance</span><b id="s-dist">0,00 <small>M</small></b></div>
-      <div class="cell"><span>Durée</span><b id="s-dur">0:00</b></div>
-      <div class="cell"><span>SOG</span><b id="s-sog">– <small>nds</small></b></div>
-      <div class="cell"><span>Moyenne</span><b id="s-avg">– <small>nds</small></b></div>
-      <div class="cell"><span>Pointe</span><b id="s-peak">– <small>nds</small></b></div>
-    </div>
-    <div class="inst" id="inst" hidden>
-      <div class="cell"><span>STW</span><b id="i-stw">–</b></div>
-      <div class="cell"><span>TWS</span><b id="i-tws">–</b></div>
-      <div class="cell"><span>TWA</span><b id="i-twa">–</b></div>
-      <div class="cell"><span>TWD</span><b id="i-twd">–</b></div>
-      <div class="cell"><span>AWS</span><b id="i-aws">–</b></div>
-      <div class="cell"><span>AWA</span><b id="i-awa">–</b></div>
-      <div class="cell"><span>Cap</span><b id="i-hdg">–</b></div>
-      <div class="cell"><span>Profondeur</span><b id="i-depth">–</b></div>
-      <div class="cell"><span>Gîte</span><b id="i-heel">–</b></div>
-    </div>
+    <div class="mes-bar" id="mes-bar" hidden><span>Glisse une mesure pour la déplacer · « − » pour la retirer</span><button class="btn main" id="mes-ok">OK</button></div>
+    <div class="grid" id="mes" aria-label="Mesures"></div>
     <div class="card bg" id="bg-panel" hidden>
       <div class="label">Instruments B&amp;G (Wi-Fi)</div>
       <div class="row"><input id="bg-host" inputmode="decimal" autocomplete="off" aria-label="Adresse du Vulcan" value="192.168.76.1"><input id="bg-port" inputmode="numeric" aria-label="Port" value="10110" style="flex:0 0 90px"></div>
@@ -222,13 +236,15 @@ a{color:var(--accent)}
 <!-- Réglages (appli iPhone : moteur du simulateur) -->
 <section class="view" id="v-set" aria-label="Réglages">
   <div class="top">
-    <div style="min-width:0"><h1>O'Tacquet</h1><div class="sub" id="r-src">Vent en attente</div></div>
+    <div style="min-width:0"><h1>O'Tacquet</h1>
+      <div class="sub" id="r-src">Vent en attente</div></div>
     <div style="display:flex;gap:6px;flex-shrink:0">
       <button class="ibtn" data-act="refresh" aria-label="Recharger la météo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg></button>
       <button class="ibtn" data-act="plein" aria-label="Passer en plein écran"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg></button>
       <button class="ibtn" id="r-edit" data-act="edit" aria-pressed="false" aria-label="Corriger le vent"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"></path></svg></button>
     </div>
   </div>
+  <div class="met" id="r-met" hidden data-leg="r-met"><span><small>TWS</small> <b id="r-mtws">–</b> nds</span><span><small id="r-mraflab">Rafales</small> <b id="r-mraf">–</b> nds</span><span><small>Mer</small> <b id="r-mmer">–</b> m</span></div>
   <div class="scroll">
     <div class="card" id="r-editbox" hidden style="border-color:var(--accent);display:flex;flex-direction:column;gap:6px">
       <div class="erow"><span>TWS (nœuds)</span><span class="pas"><button data-act="etws-" aria-label="Moins un nœud">−</button><b id="r-etws">–</b><button data-act="etws+" aria-label="Plus un nœud">+</button></span></div>
@@ -261,6 +277,7 @@ a{color:var(--accent)}
       <div class="vit"><div data-leg="r-vm"><span id="r-vmlab">Vitesse réelle</span><b id="r-vm">–</b></div><div data-leg="r-vc"><span>Vitesse max théorique</span><b class="cible" id="r-vc">–</b></div></div>
       <span class="note" id="r-phi" data-leg="r-phi"></span>
       <div class="avec" id="r-avec" hidden data-leg="r-avec"><div><span>Avec tes réglages</span><b id="r-avv">–</b></div><div class="avd"><b id="r-ave"></b><span id="r-avp"></span></div></div>
+      <div class="lof" id="r-lof" hidden role="alert" data-leg="r-lof"><span aria-hidden="true">⚠</span><span id="r-loftxt"></span></div>
       <span class="note" id="r-calc" hidden>Calcul du modèle…</span>
     </div>
     <div class="card" style="padding:6px 14px 4px">
@@ -301,6 +318,11 @@ a{color:var(--accent)}
     </div>
   </div>
 </section>
+<div class="sheet" id="mes-add" hidden role="dialog" aria-label="Ajouter une mesure"><div class="sheet-box">
+  <div class="sheet-top"><b>Ajouter une mesure</b><button class="btn" id="mes-addclose">Fermer</button></div>
+  <div id="mes-addlist"></div>
+  <button class="btn" id="mes-defaut" style="margin-top:10px">Revenir aux mesures de départ</button>
+</div></div>
 <div class="legend" id="legend" role="tooltip" hidden><b id="leg-t"></b><span id="leg-p"></span></div>
 <nav class="tabs" aria-label="Modes">
   <button class="tab" id="t-set" hidden>
@@ -316,6 +338,7 @@ a{color:var(--accent)}
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="trace.js"></script>
 <script src="nmea.js"></script>
+<script src="mesures.js"></script>
 <script src="reglages.js"></script>
 <script>
 'use strict';
@@ -372,6 +395,9 @@ $('b-center').onclick = () => { follow = true; $('b-center').hidden = true; if (
 let tr = null, watch = null, rec = { state: 'idle' }, last = null, raw = 0, wake = null, tick = null, hiddenAt = 0, gaps = [];
 async function keepAwake() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible') { wake = await navigator.wakeLock.request('screen'); } } catch (e) { wake = null; } }
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+// mesures de l'écran Trace, dans l'ordre choisi (gardé sur le téléphone) ; edition : écran des mesures en cours de modification
+let MES = Mesures.DEFAUT.slice(), edition = false;
+try { MES = Mesures.charger(localStorage.getItem('mesures-trace')); } catch (e) {}
 const Bord = NATIVE ? window.Capacitor.registerPlugin('Bord') : null;
 let nativeGps = false;
 function gpsOn() {
@@ -404,15 +430,7 @@ function onPos(p) {
   if (rec.state === 'run') { if (tr.add(fix) && line) line.addLatLng([fix.lat, fix.lon]); }
   show();
 }
-function show() {
-  const s = tr ? tr.stats() : null;
-  $('s-dist').innerHTML = fr(s ? s.distanceNM : 0, 2) + ' <small>M</small>';
-  $('s-dur').textContent = durTxt(rec.start ? Math.max((Date.now() - rec.start) / 1000, s ? s.durationS : 0) : 0);
-  const sog = last && last.sog != null ? last.sog : null;
-  $('s-sog').innerHTML = (sog != null ? fr(sog, 1) : '–') + ' <small>nds</small>';
-  $('s-avg').innerHTML = (s && s.avgKn ? fr(s.avgKn, 1) : '–') + ' <small>nds</small>';
-  $('s-peak').innerHTML = (s && s.peakKn && s.movingS > 30 ? fr(s.peakKn, 1) : '–') + ' <small>nds</small>';
-}
+function show() { majMesures(); }
 function setState(st) {
   rec.state = st;
   $('ctl-idle').hidden = st !== 'idle'; $('ctl-run').hidden = !(st === 'run' || st === 'pause'); $('ctl-end').hidden = st !== 'end';
@@ -428,19 +446,7 @@ function sampleIns(now) {
   const v = bord.now(5000, now); if (!Object.keys(v).length) return;
   insLast = now; const row = [now]; for (const k of INS_KEYS) row.push(v[k] != null ? Math.round(v[k] * 10) / 10 : null); ins.push(row);
 }
-function showIns() {
-  if (!bord) return; const v = bord.now(5000), side = a => a == null ? '' : ' <small>' + (a >= 0 ? 'tribord' : 'bâbord') + '</small>', deg = a => a == null ? '–' : Math.round(Math.abs(a)) + '°';
-  const any = Object.keys(v).length > 0; $('inst').hidden = !any && !NATIVE;
-  $('i-stw').innerHTML = v.stw != null ? fr(v.stw, 1) + ' <small>nds</small>' : '–';
-  $('i-tws').innerHTML = v.tws != null ? fr(v.tws, 0) + ' <small>nds</small>' : '–';
-  $('i-twa').innerHTML = v.twa != null ? deg(v.twa) + side(v.twa) : '–';
-  $('i-twd').textContent = v.twd != null ? String(Math.round(v.twd) % 360).padStart(3, '0') + '°' : '–';
-  $('i-aws').innerHTML = v.aws != null ? fr(v.aws, 0) + ' <small>nds</small>' : '–';
-  $('i-awa').innerHTML = v.awa != null ? deg(v.awa) + side(v.awa) : '–';
-  $('i-hdg').textContent = v.heading != null ? String(Math.round(v.heading)).padStart(3, '0') + '°' : '–';
-  $('i-heel').innerHTML = v.xdr_heel != null ? deg(v.xdr_heel) + side(v.xdr_heel) : '–';
-  $('i-depth').innerHTML = v.depth != null ? fr(v.depth, 1) + ' <small>m</small>' : '–';
-}
+function showIns() { majMesures(); }
 async function saveLive() { if (tr && rec.state !== 'idle') { try { await DB.live({ id: rec.id, start: rec.start, pts: tr.pts, gaps, ins }); } catch (e) {} } }
 async function start(resume) {
   initMap();
@@ -574,7 +580,7 @@ $('t-log').onclick = () => openLog();
 /* ---------- Appli iPhone : GPS natif et B&G ---------- */
 if (NATIVE) {
   $('rec-note').textContent = 'Dans l\'appli, l\'enregistrement continue écran verrouillé (indicateur bleu de localisation).';
-  $('bg-chip').hidden = false; $('inst').hidden = false;
+  $('bg-chip').hidden = false;
   Bord.addListener('position', d => onPos({ timestamp: d.t, coords: { latitude: d.lat, longitude: d.lon, accuracy: d.acc, speed: d.sog != null ? d.sog / J.MS_TO_KN : null, heading: d.cog != null ? d.cog : null } }));
   Bord.addListener('etatgps', d => { if (d.etat === 'refuse') $('gps-state').textContent = 'GPS refusé : Réglages › O\'Tacquet › Position'; });
   Bord.addListener('nmea', d => { bord.feed(d.lignes); $('bg-dbg').textContent = bord.n + ' phrases lues · ' + bord.bad + ' rejetées'; });
@@ -597,28 +603,78 @@ if (NATIVE) {
 }
 /* ---------- Écran Trace : mesures repliables, légende par appui long ---------- */
 const LEGENDES = {
-  's-dist': ['Distance', "Milles parcourus depuis le début de l'enregistrement, mesurés sur la trace GPS lissée : le bruit des positions à l'arrêt n'est pas compté."],
-  's-dur': ['Durée', "Temps écoulé depuis le début de l'enregistrement, pauses comprises."],
-  's-sog': ['SOG', "Speed Over Ground, vitesse fond donnée par le GPS de l'iPhone : vitesse par rapport au fond, courant compris."],
-  's-avg': ['Moyenne', "Distance divisée par le temps passé en mouvement (au-dessus de 0,5 nœud) : les arrêts ne la font pas baisser."],
-  's-peak': ['Pointe', "Meilleure vitesse fond moyenne sur 30 secondes depuis le début de l'enregistrement. Elle s'affiche après 30 secondes en mouvement."],
-  'i-stw': ['STW', "Speed Through Water, vitesse surface : vitesse du bateau par rapport à l'eau, mesurée par le loch du B&G. Sans courant, elle est égale à la vitesse fond."],
-  'i-tws': ['TWS', "True Wind Speed, force du vent réel : le vent qui souffle vraiment, calculé par le B&G à partir du vent apparent et de la vitesse du bateau, en nœuds."],
-  'i-twa': ['TWA', "True Wind Angle, angle du vent réel : compté depuis l'étrave, côté tribord ou bâbord."],
-  'i-twd': ['TWD', "True Wind Direction, direction du vent réel : d'où il vient, en degrés vrais (par rapport au nord), quel que soit le cap du bateau."],
-  'i-aws': ['AWS', "Apparent Wind Speed, force du vent apparent : vent mesuré en tête de mât, celui que reçoivent les voiles, en nœuds."],
-  'i-awa': ['AWA', "Apparent Wind Angle, angle du vent apparent : compté depuis l'étrave, côté tribord ou bâbord."],
-  'i-hdg': ['Cap', "Direction vers laquelle pointe l'étrave, donnée par le compas du B&G et corrigée de la déclinaison : cap vrai, comparable à la route fond."],
-  'i-heel': ['Gîte', "Inclinaison du bateau sur le côté, mesurée par le B&G. À quai, elle indique déjà 3 à 4° : étalonnage à faire sur le Vulcan."],
   'r-rose': ['Vent sur le bateau', "Le bateau vu de dessus, étrave en haut. Flèche bleue : vent réel (TWA). Flèche jaune : vent apparent (AWA), celui que reçoivent les voiles. Secteur rouge : trop près du vent (moins de 40° du vent réel)."],
   'r-vm': ['Vitesse réelle', "STW (Speed Through Water) : vitesse surface lue sur le loch du B&G. Sans B&G : SOG (Speed Over Ground), vitesse fond du GPS de l'iPhone, courant compris."],
   'r-vc': ['Vitesse max théorique', "Vitesse que prévoit le modèle du simulateur pour ce vent et cet angle, voiles réglées comme conseillé, dans la mer formée par ce vent. Elle suppose tous les réglages au mieux, même si tu en as forcé : ce que donnent tes réglages est dans le cadre « Avec tes réglages ». Au près, le modèle est encore 20 à 45 % trop rapide par rapport à tes repères (4,5 nœuds par 15 nœuds) : prends-la comme un ordre de grandeur."],
-  'r-phi': ['Gîte et barre au mieux', "Gîte et angle de barre que prévoit le modèle avec tous les réglages au mieux (en auto), et la gîte mesurée par le B&G. Avec tes réglages forcés, elles sont dans le cadre « Avec tes réglages »."],
+  'r-phi': ['Gîte et barre au mieux', "Gîte et angle de barre que prévoit le modèle avec tous les réglages au mieux (en auto), et la gîte mesurée par le B&G. Avec le B&G, en direct : une rafale fait gîter avant que le bateau accélère, en ≈ 6 s (à ajuster avec les enregistrements). Sans lui : au vent moyen et dans la rafale annoncée. Avec tes réglages forcés, elles sont dans le cadre « Avec tes réglages »."],
   'r-avec': ['Avec tes réglages', "Vitesse, gîte et barre que prévoit le modèle avec tout ce que tu as forcé à la main ; les réglages restés en auto suivent le conseil adapté à tes choix. L'écart avec la vitesse max théorique dit ce que tes réglages coûtent selon le modèle."],
   'r-expert': ['Mode expert', "Pour chaque réglage, la perte de vitesse si on le met au pire, les autres restant au mieux. Sous 0,05 nœud, il est indifférent. Le modèle conseille encore le pataras toujours relâché : écart connu, à corriger."],
+  'r-met': ['Conditions', "TWS : force du vent réel (B&G, sinon prévision Open-Meteo, corrigeable au crayon). Rafales : annoncées par Open-Meteo, ou la plus forte mesurée par le B&G sur les deux dernières minutes. Mer : hauteur des vagues prévue."],
+  'r-lof': ['Risque de départ au lof', "Gîte et barre que prévoit le modèle dans les rafales annoncées par Open-Meteo, ou avec le B&G dans la plus forte rafale mesurée des deux dernières minutes, avec tes réglages du moment. Alerte dès 20° de gîte ou 14° de barre ; départ au lof probable au-delà de 25° de gîte (ta limite) ou de 20° de barre (le safran décroche)."],
   'r-next': ['Prochain changement', "Cherché en faisant forcir le vent nœud par nœud, à l'angle actuel. Le modèle conseille encore le ris trop tard : il ignore la barre et les rafales, alors que tu prends un ris vers 20 nœuds."],
-  'i-depth': ['Profondeur', "Hauteur d'eau sous la sonde du sondeur, sans correction (aucun décalage réglé sur le Vulcan). Sous la quille, avec 1,87 m de tirant d'eau, il y en a moins."]
 };
+for (const m of Mesures.CATALOGUE) LEGENDES['m-' + m.k] = [m.nom, m.leg];
+/* Mesures de l'écran Trace : ordre gardé sur le téléphone ; édition comme l'écran d'accueil de l'iPhone */
+const garderMes = () => { try { localStorage.setItem('mesures-trace', Mesures.garder(MES)); } catch (e) {} };
+function dessinerMesures() {
+  $('mes').innerHTML = MES.map(k => { const m = Mesures.PAR_K[k];
+    return '<div class="cell" data-k="' + k + '" data-leg="m-' + k + '"><button class="moins" data-moins="' + k + '" aria-label="Retirer ' + m.nom + '">−</button><span>' + m.nom + '</span><b id="m-' + k + '">–</b></div>'; }).join('') +
+    (edition ? '<button class="cell plus" id="mes-plus">+ Ajouter</button>' : '');
+  majMesures();
+}
+function majMesures() {
+  const v = bord ? bord.now(5000) : {}, d = { stats: tr ? tr.stats() : null, sog: last && last.sog != null ? last.sog : null, cog: last && last.cog != null ? last.cog : null, start: rec.start, now: Date.now(), v };
+  const bg = Object.keys(v).length > 0;
+  for (const k of MES) {
+    const b = $('m-' + k); if (!b) continue;
+    b.innerHTML = Mesures.valeur(k, d);
+    b.parentNode.hidden = !edition && !NATIVE && !bg && Mesures.PAR_K[k].src === 'bg';   // sur le site web, sans B&G : ses mesures ne s'affichent pas
+  }
+}
+function editer(on) {
+  edition = on; $('panel').classList.toggle('edit', on); $('mes-bar').hidden = !on;
+  if (!on) { $('mes-add').hidden = true; garderMes(); }
+  dessinerMesures();
+}
+function listeAjout() {
+  const dispo = Mesures.disponibles(MES), grp = [['Trace et GPS de l’iPhone', ['trace', 'gps']], ['Instruments du B&G', ['bg']]];
+  $('mes-addlist').innerHTML = (dispo.length ? '' : '<p class="note">Toutes les mesures sont déjà affichées.</p>') + grp.map(([t, src]) => {
+    const l = dispo.filter(m => src.includes(m.src)); if (!l.length) return '';
+    return '<h3>' + t + '</h3>' + l.map(m => '<button class="ajout" data-ajout="' + m.k + '"><b>' + m.nom + '</b><span>' + m.leg.split(' : ')[0].split('. ')[0] + '</span></button>').join('');
+  }).join('');
+}
+$('mes').addEventListener('click', e => {
+  const moins = e.target.closest('[data-moins]');
+  if (moins && edition) { MES = Mesures.retirer(MES, moins.dataset.moins); garderMes(); dessinerMesures(); return; }
+  if (e.target.closest('#mes-plus')) { listeAjout(); $('mes-add').hidden = false; }
+});
+$('mes-addlist').addEventListener('click', e => { const a = e.target.closest('[data-ajout]'); if (!a) return; MES = Mesures.ajouter(MES, a.dataset.ajout); garderMes(); dessinerMesures(); $('mes-add').hidden = true; });
+$('mes-addclose').onclick = () => { $('mes-add').hidden = true; };
+$('mes-add').addEventListener('click', e => { if (e.target === $('mes-add')) $('mes-add').hidden = true; });
+$('mes-defaut').onclick = () => { MES = Mesures.DEFAUT.slice(); garderMes(); dessinerMesures(); $('mes-add').hidden = true; };
+$('mes-ok').onclick = () => editer(false);
+// glisser une mesure : elle prend la place de celle qu'on survole
+(() => {
+  let tenue = null;
+  $('mes').addEventListener('pointerdown', e => {
+    if (!edition || e.target.closest('[data-moins]')) return;
+    const c = e.target.closest('.cell[data-k]'); if (!c) return;
+    tenue = c; c.classList.add('drag'); $('mes').setPointerCapture(e.pointerId); e.preventDefault();
+  });
+  $('mes').addEventListener('pointermove', e => {
+    if (!tenue) return;
+    const sous = document.elementFromPoint(e.clientX, e.clientY), cible = sous && sous.closest('#mes .cell[data-k]');
+    if (!cible || cible === tenue) return;
+    const cells = [...$('mes').querySelectorAll('.cell[data-k]')];
+    $('mes').insertBefore(tenue, cells.indexOf(tenue) < cells.indexOf(cible) ? cible.nextSibling : cible);
+  });
+  const lacher = () => {
+    if (!tenue) return; tenue.classList.remove('drag'); tenue = null;
+    MES = [...$('mes').querySelectorAll('.cell[data-k]')].map(c => c.dataset.k); garderMes();
+  };
+  $('mes').addEventListener('pointerup', lacher); $('mes').addEventListener('pointercancel', lacher);
+})();
+dessinerMesures();
 (() => {
   const panel = $('panel'), fold = $('b-fold'), leg = $('legend');
   const setFold = min => {
@@ -630,13 +686,16 @@ const LEGENDES = {
   let min0 = false; try { min0 = localStorage.getItem('mesures-reduites') === '1'; } catch (e) {}
   setFold(min0);
   fold.onclick = () => setFold(!panel.classList.contains('min'));
-  let timer = null;
-  const hide = () => { clearTimeout(timer); timer = null; leg.hidden = true; };
+  let timer = null, timer2 = null, x0 = 0, y0 = 0;
+  const hide = () => { clearTimeout(timer); clearTimeout(timer2); timer = timer2 = null; leg.hidden = true; };
   document.addEventListener('pointerdown', e => {
+    if (edition) return;
     const cell = e.target.closest('[data-leg], .cell'), b = cell && !cell.dataset.leg && cell.querySelector('b');
+    x0 = e.clientX; y0 = e.clientY;
     const t = cell && LEGENDES[cell.dataset.leg || (b && b.id)];
-    if (!t) return;
     hide();
+    if (cell && cell.closest('#mes')) timer2 = setTimeout(() => { hide(); editer(true); }, 1000);   // on reste appuyé : les mesures se modifient
+    if (!t) return;
     timer = setTimeout(() => {
       $('leg-t').textContent = t[0]; $('leg-p').textContent = t[1]; leg.hidden = false;
       const r = cell.getBoundingClientRect();   // au-dessus de la case, que le doigt cache
@@ -644,6 +703,7 @@ const LEGENDES = {
     }, 400);
   });
   for (const ev of ['pointerup', 'pointercancel']) document.addEventListener(ev, hide);
+  document.addEventListener('pointermove', e => { if ((timer || timer2) && Math.hypot(e.clientX - x0, e.clientY - y0) > 10) hide(); });   // le doigt glisse : ce n'est pas un appui long
   panel.addEventListener('pointerleave', hide);
   document.addEventListener('contextmenu', e => { if (e.target.closest('[data-leg], .cell')) e.preventDefault(); });
 })();

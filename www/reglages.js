@@ -8,7 +8,10 @@
   const $ = id => document.getElementById(id);
   const fr = (n, d) => n.toFixed(d).replace('.', ',');
   const hm = t => { const d = new Date(t); return d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0'); };
-  const KN = 0.514444, TROP_PRES = 40, LISSAGE = 0.15;   // lissage du vent du B&G, par seconde (≈ 6 s)
+  // LISSAGE : vent du B&G lissé, par seconde (≈ 6 s). C'est aussi le temps que met le bateau à se recaler sur une rafale (vitesse, réglages) :
+  // au-dessus du vent lissé, le vent mesuré est une rafale qui fait gîter le bateau avant qu'il accélère (estimé, à ajuster avec les enregistrements)
+  const KN = 0.514444, TROP_PRES = 40, LISSAGE = 0.15, RAFALE_S = 120;   // RAFALE_S : fenêtre où l'on cherche la plus forte rafale du B&G
+  const rafB = [];   // vent réel du B&G des deux dernières minutes : [instant, TWS]
   const ALLURES = [['Près', 0, 60], ['Bon plein', 60, 80], ['Travers', 80, 100], ['Largue', 100, 135], ['Grand largue', 135, 165], ['Vent arrière', 165, 181]];
   const VALS = { bs: [0, 25, 50, 75, 100], car: [0, 25, 50, 75, 100], vang: [0, 25, 50, 75, 100], trav: [-100, -50, 0, 50, 100] };
   let PHY = null, ctx = null, lisse = null, dernier = null, dernier0 = null, enCalcul = false;   // dernier : avec les réglages forcés ; dernier0 : tout en auto
@@ -24,7 +27,12 @@
     if (S.hdgSet != null) { c.hdg = S.hdgSet; c.hdgSrc = 'choisi'; }
     else if (v.heading != null) { c.hdg = v.heading; c.hdgSrc = 'B&G'; }
     else if (g && g.cog != null && g.sog > 1) { c.hdg = g.cog; c.hdgSrc = 'route fond GPS'; }
-    if (v.tws != null && (v.twd != null || v.twa != null)) { c.src = 'B&G'; c.tws = v.tws; c.twd = v.twd; }
+    if (v.tws != null && (v.twd != null || v.twa != null)) {
+      c.src = 'B&G'; c.tws = v.tws; c.twd = v.twd;
+      const t = Date.now(); if (!rafB.length || t - rafB[rafB.length - 1][0] >= 900) rafB.push([t, v.tws]);
+      while (rafB.length && t - rafB[0][0] > RAFALE_S * 1000) rafB.shift();
+      c.gust = Math.max(...rafB.map(x => x[1]));   // plus forte rafale mesurée des deux dernières minutes
+    }
     else if (S.corr) { c.src = 'corrigé à la main'; c.tws = S.corr.tws; c.twd = S.corr.twd; }
     else if (S.meteo) { c.src = 'Open-Meteo ' + hm(S.meteo.t); c.tws = S.meteo.tws; c.twd = S.meteo.twd; c.gust = S.meteo.gust; }
     if (S.meteo && S.meteo.hs != null) c.hs = S.meteo.hs;
@@ -128,7 +136,8 @@
   function ligneHTML(L, expert) {
     let h = '<div class="rg" id="rg-' + L.k + '"><div class="rh"><span class="rn">' + L.name + ' <small id="rv-' + L.k + '"></small></span>' +
       (expert ? '<span class="imp" id="ri-' + L.k + '"></span>' : '') +
-      '<button class="pill on" id="rp-' + L.k + '" data-act="man-' + L.k + '">auto</button></div>';
+      '<button class="pill on" id="rp-' + L.k + '" data-act="man-' + L.k + '">auto</button></div>' +
+      '<p class="cons" id="rc-' + L.k + '" hidden></p>';
     if (L.seg) h += '<span class="seg" role="group" aria-label="' + L.name + '">' + L.seg.map(n => '<button data-act="' + L.k + '=' + n + '" id="rs-' + L.k + n + '">' + n + '</button>').join('') + '</span>';
     else {
       h += '<div class="cur"><input type="range" id="rr-' + L.k + '" data-k="' + L.k + '" min="' + L.min + '" max="' + L.max + '" step="1" aria-label="' + L.name + '">';
@@ -137,13 +146,35 @@
     }
     return h + '</div>';
   }
-  function reglerLigne(L, r, expert) {
-    const k = L.k, m = !!S.man[k], conseil = r ? VERS[k](r.c) : null, v = m ? S.val[k] : conseil;
+  // conseil pratique : ce qu'il faut faire, selon le sens de l'écart entre le réglage forcé et l'idéal théorique
+  const GESTE = {
+    main: ['Choquer l’écoute de GV', 'Border l’écoute de GV'], jib: ['Choquer l’écoute de génois', 'Border l’écoute de génois'],
+    furl: ['Enrouler le génois', 'Dérouler le génois'], trav: ['Descendre le chariot de GV sous le vent', 'Remonter le chariot de GV au vent'],
+    reef: ['Prendre un ris', 'Larguer un ris'], bs: ['Reprendre le pataras', 'Relâcher le pataras'],
+    car: ['Reculer les chariots de génois', 'Avancer les chariots de génois'], vang: ['Reprendre le hale-bas', 'Choquer le hale-bas']
+  };
+  const MOTEUR = { main: 'mainSet', jib: 'jibSet' };   // clé du curseur → clé du moteur (les autres sont identiques)
+  const gainCache = new Map();
+  function gainSi(k, src, av) {   // vitesse gagnée si ce seul réglage passe à l'idéal, tout le reste comme tu l'as mis
+    const c = configAvec(dernier); if (!c || !av) return null;
+    const e = MOTEUR[k] || k; c[e] = src.c[e];
+    const key = [k, dernier.tws, dernier.A, JSON.stringify(c)].join('|');
+    if (!gainCache.has(key)) { gainCache.set(key, PHY.steady(dernier.tws * KN, dernier.A, c, dernier, false).V / KN - av.V); if (gainCache.size > 200) gainCache.delete(gainCache.keys().next().value); }
+    return gainCache.get(key);
+  }
+  function reglerLigne(L, r, expert, r0, av) {
+    const k = L.k, m = !!S.man[k], src = r && POSE[k] && r0 ? r0 : r, conseil = src ? VERS[k](src.c) : null, v = m ? S.val[k] : (r ? VERS[k](r.c) : null);
     $('rg-' + k).classList.toggle('man', m);
     const p = $('rp-' + k); p.classList.toggle('on', !m); p.textContent = m ? 'manuel' : 'auto';
     p.setAttribute('aria-label', L.name + (m ? ' : manuel, toucher pour repasser en auto' : ' : auto'));
     let t = v == null ? '' : '· ' + TXT[k](v);
-    if (m && conseil != null && Math.abs(Math.round(conseil) - Math.round(v)) >= 1) t += ' · conseil : ' + TXT[k](conseil);
+    const cons = $('rc-' + k), ecart = m && conseil != null && Math.abs(Math.round(conseil) - Math.round(v)) >= 1;
+    cons.hidden = !ecart;
+    if (ecart) {
+      const g = gainSi(k, src, av);
+      cons.innerHTML = '<b>' + GESTE[k][conseil > v ? 0 : 1] + '</b> <span>· idéal théorique : ' + TXT[k](conseil) +
+        (g == null ? '' : g >= 0.05 ? ', gain possible +' + fr(g, 1) + ' nd' : ', gain inférieur à 0,1 nd') + '</span>';
+    }
     if (!m && k === 'trav' && r && r.sens.trav < 0.05) t += ' (indifférent)';
     $('rv-' + k).textContent = t;
     if (L.seg) L.seg.forEach(n => $('rs-' + k + n).setAttribute('aria-pressed', String(v === n)));
@@ -156,14 +187,51 @@
   }
   // vitesse, gîte et barre avec tout ce qui est forcé à la main (les réglages restés en auto suivent le conseil adapté à ces choix)
   const avecCache = new Map();
-  function avecTesReglages(r) {
-    if (!r || !Object.keys(S.man).some(k => S.man[k])) return null;
-    if (!['main', 'jib', 'trav', 'vang'].some(k => S.man[k])) return { V: r.V, phi: r.phi, helm: r.helm };
+  /* Rafale : avec le B&G, le vent mesuré au-dessus du vent lissé (en direct) ; sans lui, la rafale annoncée par Open-Meteo.
+     La gîte « réelle » est celle de la rafale : elle arrive avant que le bateau accélère et que l'équipage règle (PHY : gîte et barre à la vitesse du moment). */
+  function rafale(c) {
+    if (c.src === 'B&G' && c.twsL > 0) return { g: Math.max(0, c.tws / c.twsL - 1), direct: true };
+    if (c.gust != null && c.tws > 0 && c.gust > c.tws) return { g: c.gust / c.tws - 1, direct: false };
+    return { g: 0, direct: false };
+  }
+  const giteCache = new Map();
+  function giteRafale(r, cfg, g) {   // gîte et barre dans la rafale g (fraction du vent en plus), réglages cfg
+    const key = [r.tws, r.A, Math.round(g * 100), JSON.stringify(cfg)].join('|');
+    if (!giteCache.has(key)) { const s = PHY.steady(r.tws * KN, r.A, Object.assign({}, cfg, { gust: g }), r, false); giteCache.set(key, { phi: g > 0 ? s.phiG : s.phi, helm: Math.abs(g > 0 ? s.helmG : s.helm) }); if (giteCache.size > 200) giteCache.delete(giteCache.keys().next().value); }
+    return giteCache.get(key);
+  }
+  // « gîte 3° · barre 0° » : en direct avec le B&G (rafale du moment comprise) ; sinon au vent moyen, et dans la rafale annoncée
+  function giteTexte(r, cfg, moy, c) {
+    const R = rafale(c);
+    if (R.direct) { const x = R.g > 0.02 ? giteRafale(r, cfg, R.g) : moy; return 'gîte ' + Math.round(x.phi) + '° · barre ' + Math.round(x.helm) + '° (en direct)'; }
+    if (R.g > 0.02) { const x = giteRafale(r, cfg, R.g); return 'gîte ' + Math.round(moy.phi) + '° (rafale ' + Math.round(x.phi) + '°) · barre ' + Math.round(moy.helm) + '° (rafale ' + Math.round(x.helm) + '°)'; }
+    return 'gîte ' + Math.round(moy.phi) + '° · barre ' + Math.round(moy.helm) + '°';
+  }
+  // départ au lof : au-delà de la gîte limite (25°, Jérémie) ou quand le safran décroche (20° de barre), le bateau part au lof ; on prévient dès 20° de gîte ou 14° de barre (trop toilé)
+  function alerteLof(c, r, tooClose) {
+    const box = $('r-lof');
+    if (!r || tooClose || c.tws == null) { box.hidden = true; return; }
+    const R = rafale(c), g = R.direct ? Math.max(R.g, c.gust / c.tws - 1) : R.g, x = giteRafale(r, configAvec(r), g), lim = PHY.Y.lofHeel || 25, fort = x.phi >= lim || x.helm >= 20, risque = fort || x.phi >= lim - 5 || x.helm >= 14;
+    box.hidden = !risque;
+    if (risque) {
+      const ou = g > 0.02 ? (R.direct ? 'dans les rafales mesurées (jusqu’à ' : 'dans les rafales à ') + fr(c.gust, 0) + ' nds' + (R.direct ? ')' : '') : 'au vent actuel';
+      box.classList.toggle('fort', fort);
+      $('r-loftxt').textContent = (fort ? 'Départ au lof probable ' : 'Risque de départ au lof ') + ou + ' : gîte ' + Math.round(x.phi) + '°, barre ' + Math.round(x.helm) + '°. Choque la GV, enroule ou prends un ris.';
+    }
+  }
+  function configAvec(r) {
+    if (!r) return null;
     const c = Object.assign({}, r.c);
     if (S.man.main) c.mainSet = 2 + S.val.main * 0.83;
     if (S.man.jib) c.jibSet = jm() + S.val.jib / 100 * (38 - jm());
     if (S.man.trav) c.trav = S.val.trav;
     if (S.man.vang) c.vang = S.val.vang;
+    return c;
+  }
+  function avecTesReglages(r) {
+    if (!r || !Object.keys(S.man).some(k => S.man[k])) return null;
+    if (!['main', 'jib', 'trav', 'vang'].some(k => S.man[k])) return { V: r.V, phi: r.phi, helm: r.helm };
+    const c = configAvec(r);
     const key = [r.tws, r.A, c.reef, c.furl, c.bs, c.car, Math.round(c.mainSet), Math.round(c.jibSet), Math.round(c.trav), Math.round(c.vang)].join('|');
     if (!avecCache.has(key)) { const s = PHY.steady(r.tws * KN, r.A, c, r, false); avecCache.set(key, { V: s.V / KN, phi: s.phi, helm: Math.abs(s.helm) }); if (avecCache.size > 200) avecCache.delete(avecCache.keys().next().value); }
     return avecCache.get(key);
@@ -172,9 +240,12 @@
   function render() {
     if (!PHY || !ctx.visible()) return;
     const c = conditions();
-    $('r-src').textContent = c.tws != null
-      ? 'TWS ' + fr(c.tws, 0) + ' nds' + (c.gust != null ? ', rafales ' + fr(c.gust, 0) : '') + (c.hs != null ? ' · mer ' + fr(c.hs, 1) + ' m' : '') + ' · ' + c.src
-      : (S.meteoErr || 'Vent en attente du B&G ou de la météo');
+    $('r-met').hidden = c.tws == null;
+    if (c.tws != null) {
+      $('r-mtws').textContent = fr(c.tws, 0); $('r-mraf').textContent = c.gust != null ? fr(c.gust, 0) : '–'; $('r-mmer').textContent = c.hs != null ? fr(c.hs, 1) : '–';
+      $('r-mraflab').textContent = c.src === 'B&G' ? 'Rafales (2 min)' : 'Rafales';
+    }
+    $('r-src').textContent = c.tws != null ? c.src : (S.meteoErr || 'Vent en attente du B&G ou de la météo');
     // cap et rose
     const A = c.twa != null ? Math.abs(c.twa) : null, cote = c.twa == null ? '' : c.twa >= 0 ? 'tribord amures' : 'bâbord amures';
     $('r-hdg').textContent = c.hdg != null ? String(Math.round(c.hdg) % 360).padStart(3, '0') + '°' : '–';
@@ -205,21 +276,22 @@
     // vitesses
     $('r-vm').textContent = c.vm != null ? fr(c.vm, 1) : '–';
     $('r-vmlab').textContent = 'Vitesse réelle · ' + (c.vmSrc === 'loch' ? 'STW' : c.vmSrc === 'GPS' ? 'SOG' : 'en attente');
-    $('r-vc').textContent = r0 && !tooClose ? fr(r0.V, 1) : '–';
+    $('r-vc').innerHTML = r0 && !tooClose ? fr(r0.V, 1) + '<small class="u"> nd</small>' : '–';
     const gm = c.v.xdr_heel, mes = gm != null ? ' · gîte mesurée ' + Math.round(Math.abs(gm)) + '°' : '';
-    $('r-phi').textContent = r0 && !tooClose ? 'Au mieux : gîte ' + Math.round(r0.phi) + '° · barre ' + Math.round(r0.helm) + '°' + mes : (gm != null ? 'Gîte mesurée ' + Math.round(Math.abs(gm)) + '°' : '');
+    $('r-phi').textContent = r0 && !tooClose ? 'Au mieux : ' + giteTexte(r0, r0.c, r0, c) + mes : (gm != null ? 'Gîte mesurée ' + Math.round(Math.abs(gm)) + '°' : '');
     // réglages
     const rr = r && !tooClose ? r : null;
-    LIGNES.forEach(L => reglerLigne(L, rr, false)); EXPERT.forEach(L => reglerLigne(L, rr, true));
+    const av = avecTesReglages(rr), avR = av || (rr ? { V: rr.V } : null);
+    LIGNES.forEach(L => reglerLigne(L, rr, false, r0, avR)); EXPERT.forEach(L => reglerLigne(L, rr, true, r0, avR));
     $('r-list-note').hidden = !!rr;
     $('r-list-note').textContent = tooClose ? 'Trop près du vent : pas de réglage conseillé.' : 'Les conseils s’affichent dès que le vent et son angle sont connus.';
-    const av = avecTesReglages(rr);
     $('r-avec').hidden = av == null || !r0;
     if (av != null && r0) {
-      $('r-avv').textContent = fr(av.V, 1);
+      $('r-avv').innerHTML = fr(av.V, 1) + '<small class="u"> nd</small>';
       $('r-ave').textContent = av.V - r0.V >= -0.05 ? 'au mieux' : '−' + fr(r0.V - av.V, 1) + ' nd';
-      $('r-avp').textContent = 'gîte ' + Math.round(av.phi) + '° · barre ' + Math.round(av.helm) + '°';
+      $('r-avp').textContent = giteTexte(rr, configAvec(rr), av, c);
     }
+    alerteLof(c, rr, tooClose);
     if (rr) {
       if (rr.next === undefined) { rr.next = null; setTimeout(() => { rr.next = prochain(rr); render(); }, 60); }
       $('r-next').hidden = !rr.next; $('r-nexttxt').textContent = rr.next || '';
@@ -277,7 +349,9 @@
     const c = conditions(), r = dernier0, A = c.twa != null ? Math.abs(c.twa) : null, gm = c.v.xdr_heel;
     $('pl-tw').textContent = c.tws != null ? fr(c.tws, 0) + ' nds' + (A != null ? ' · ' + Math.round(A) + '° ' + (c.twa >= 0 ? 'tribord' : 'bâbord') : '') : '–';
     $('pl-heellab').textContent = gm != null ? 'Gîte' : 'Gîte (modèle)';
-    $('pl-heel').textContent = gm != null ? Math.round(Math.abs(gm)) + '°' : r ? Math.round(r.phi) + '°' : '–';
+    let gx = r ? Math.round(r.phi) + '°' : '–';
+    if (r && gm == null) { const R = rafale(c); if (R.g > 0.02) { const x = giteRafale(r, r.c, R.g); gx = R.direct ? Math.round(x.phi) + '°' : Math.round(r.phi) + '° à ' + Math.round(x.phi) + '°'; } }
+    $('pl-heel').textContent = gm != null ? Math.round(Math.abs(gm)) + '°' : gx;
     $('pl-vmlab').textContent = 'Vitesse réelle · ' + (c.vmSrc === 'loch' ? 'STW' : c.vmSrc === 'GPS' ? 'SOG' : 'en attente');
     $('pl-vm').textContent = c.vm != null ? fr(c.vm, 1) : '–';
     $('pl-vclab').textContent = r ? 'Max théorique ' + fr(r.V, 1) + ' nds' : 'Max théorique';
@@ -287,6 +361,7 @@
       twa: c.twaL != null ? Math.round(c.twaL / 5) * 5 : c.twa != null ? Math.round(c.twa / 5) * 5 : null,
       reef: S.man.reef && S.pose.reef != null ? S.pose.reef : null, furl: S.man.furl && S.pose.furl != null ? S.pose.furl : null };
     // les autres réglages passés en manuel suivent aussi (null : le simulateur les règle lui-même)
+    if (c.src !== 'B&G' && c.gust != null && c.tws > 0) m.gust = Math.max(0, Math.min(40, Math.round((c.gust / c.tws - 1) * 100 / 5) * 5));
     for (const k of ['main', 'jib', 'trav', 'vang', 'bs', 'car']) { const v = POSE[k] ? S.pose[k] : S.val[k]; m[k] = S.man[k] && v != null ? Math.round(v) : null; }
     const sig = JSON.stringify(m);
     if (sig !== envoi && plein.contentWindow) { plein.contentWindow.postMessage(m, '*'); envoi = sig; }
