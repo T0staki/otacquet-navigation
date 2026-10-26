@@ -14,16 +14,21 @@ rep("https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js", "./three
 rep("https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js", "./three/three.min.js")
 rep("</head>", "<style>/* appli O'Tacquet : vue seule */ .hud,.keyhelp,#mathp,#mathlbl,.toast,#b-show,.intro{display:none!important}</style>\n</head>")
 hook = r"""
-/* Appli O'Tacquet : la page parente pilote la vue (vent mesuré ou prévu, angle au vent, ris et génois choisis) */
+/* Appli O'Tacquet : la page parente pilote la vue (vent mesuré ou prévu, angle au vent, et chaque réglage passé en manuel dans l'écran Réglages) */
+window.__otSheet={main:null,jib:null};
+{const auto0=autoStep;autoStep=function(dt,a){auto0(dt,a);if(window.__otSheet.main!=null)B.main=window.__otSheet.main;if(window.__otSheet.jib!=null)B.jib=window.__otSheet.jib;};}   // écoute réglée à la main dans l'appli : elle reste là où on l'a mise
 window.addEventListener('message',e=>{const d=e.data;if(!d||d.ot!=='bateau')return;
+  const tws0=$('i-tws').value,twd0=$('i-twd').value;
   if(d.tws!=null)$('i-tws').value=Math.max(3,Math.min(60,Math.round(d.tws)));
   if(d.twd!=null)$('i-twd').value=((Math.round(d.twd/5)*5)%360+360)%360;
-  readConds();
+  if(!window.__otCond||$('i-tws').value!==tws0||$('i-twd').value!==twd0){readConds();window.__otCond=1;}   // la mer ne se recalcule que si le vent change (un curseur qu'on glisse envoie beaucoup de messages)
   if(d.twa!=null&&Math.abs(d.twa)>=30&&!window.__otCap){B.h=((S.twd-d.twa)*D2R);window.__otCap=1;}   // premier message : bateau posé au cap TWD − TWA, sur la bonne amure
   if(d.twa!=null&&Math.abs(d.twa)>=30){if(!AP.on)apEngage(true);if(AP.mode!=='vent')setApMode('vent');AP.twa=clamp(Math.round(Math.abs(d.twa)),30,175);AP.side=d.twa>=0?1:-1;}
   if(!AT.on)atEngage(true);
   if(d.reef!=null)setReef(d.reef,true);else if(FINE.man.reef)setFineMan('reef',false);
   if(d.furl!=null){FINE.furl=d.furl;setFineMan('furl',true);}else if(FINE.man.furl)setFineMan('furl',false);
+  for(const k of ['bs','car','trav','vang']){if(d[k]!=null){FINE[k]=d[k];setFineMan(k,true);}else if(FINE.man[k])setFineMan(k,false);}   // pataras, chariots de génois, chariot de GV, hale-bas
+  window.__otSheet.main=d.main!=null?Math.max(0,Math.min(100,d.main)):null;window.__otSheet.jib=d.jib!=null?Math.max(0,Math.min(100,d.jib)):null;   // écoutes : même échelle que l'appli (0 bordée, 100 choquée)
 });
 try{parent.postMessage({ot:'bateau-pret'},'*');}catch(e){}
 /* Caméra : glisser tourne autour du bateau, pincer rapproche (gestes du simulateur, vue poursuite) ; un appui court sans bouger affiche ou masque les informations de l'appli */

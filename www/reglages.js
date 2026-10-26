@@ -282,10 +282,12 @@
     $('pl-vm').textContent = c.vm != null ? fr(c.vm, 1) : '–';
     $('pl-vclab').textContent = r ? 'Max théorique ' + fr(r.V, 1) + ' nds' : 'Max théorique';
     $('pl-ecart').textContent = r && c.vm != null ? (c.vm - r.V >= 0 ? '+' : '−') + fr(Math.abs(c.vm - r.V), 1) : '';
-    // vers la vue 3D, seulement quand le vent arrondi ou les voiles choisies changent (la mer du simulateur se recalcule à chaque envoi)
+    // vers la vue 3D, seulement quand le vent arrondi ou un réglage change
     const m = { ot: 'bateau', tws: c.twsL != null ? Math.round(c.twsL) : c.tws != null ? Math.round(c.tws) : null, twd: c.twd != null ? Math.round(c.twd / 5) * 5 : null,
       twa: c.twaL != null ? Math.round(c.twaL / 5) * 5 : c.twa != null ? Math.round(c.twa / 5) * 5 : null,
       reef: S.man.reef && S.pose.reef != null ? S.pose.reef : null, furl: S.man.furl && S.pose.furl != null ? S.pose.furl : null };
+    // les autres réglages passés en manuel suivent aussi (null : le simulateur les règle lui-même)
+    for (const k of ['main', 'jib', 'trav', 'vang', 'bs', 'car']) { const v = POSE[k] ? S.pose[k] : S.val[k]; m[k] = S.man[k] && v != null ? Math.round(v) : null; }
     const sig = JSON.stringify(m);
     if (sig !== envoi && plein.contentWindow) { plein.contentWindow.postMessage(m, '*'); envoi = sig; }
   }
