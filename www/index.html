@@ -185,6 +185,11 @@ a{color:var(--accent)}
 .expbtn small{font-size:12px;color:var(--ink2)}
 .next{display:flex;align-items:center;gap:8px;min-height:28px;padding:0 4px;font-size:14px}
 .u{font-size:.42em;font-weight:500;letter-spacing:0}
+/* Mode « Bord » (appli O'Tacquet Bord, pour l'iPhone du père de Jérémie) : Réglages sans vue 3D, Trace, envoi des données en un geste */
+body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
+.envoi{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:14px;border:1.5px solid var(--accent);background:var(--card)}
+.envoi b{font-size:16px}
+.envoi .note{margin:0}
 .cons{margin:2px 0 0;font-size:13px;line-height:1.35}
 .cons b{font-weight:600;color:var(--accent)}
 .cons span{color:var(--ink2);opacity:.75}
@@ -222,6 +227,7 @@ a{color:var(--accent)}
       <p class="dbg" id="bg-dbg" style="margin:0"></p>
     </div>
     <div class="warn" id="lock-warn" hidden></div>
+    <div class="envoi" id="bord-envoi" hidden><b id="bord-envoi-t"></b><p class="note" id="bord-envoi-p">Envoie-la à Jérémie : choisis Messages, WhatsApp ou Mail dans la fenêtre qui s'ouvre.</p><button class="btn main" id="b-envoi">Envoyer les données à Jérémie</button></div>
     <div class="btns" id="ctl-idle"><button class="btn go" id="b-start">Démarrer l'enregistrement</button></div>
     <div class="btns" id="ctl-run" hidden><button class="btn" id="b-pause">Pause</button><button class="btn main" id="b-stop">Terminer</button></div>
     <div id="ctl-end" hidden class="endbox">
@@ -340,6 +346,7 @@ a{color:var(--accent)}
 <script src="nmea.js"></script>
 <script src="mesures.js"></script>
 <script src="reglages.js"></script>
+<script src="moteur/mode.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -395,6 +402,8 @@ $('b-center').onclick = () => { follow = true; $('b-center').hidden = true; if (
 let tr = null, watch = null, rec = { state: 'idle' }, last = null, raw = 0, wake = null, tick = null, hiddenAt = 0, gaps = [];
 async function keepAwake() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible') { wake = await navigator.wakeLock.request('screen'); } } catch (e) { wake = null; } }
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const BORD = window.OT_MODE === 'bord';   // appli « O'Tacquet Bord » (outillage/moteur.sh avec OT_MODE=bord)
+if (BORD) document.body.classList.add('bord');
 // mesures de l'écran Trace, dans l'ordre choisi (gardé sur le téléphone) ; edition : écran des mesures en cours de modification
 let MES = Mesures.DEFAUT.slice(), edition = false;
 try { MES = Mesures.charger(localStorage.getItem('mesures-trace')); } catch (e) {}
@@ -432,7 +441,7 @@ function onPos(p) {
 }
 function show() { majMesures(); }
 function setState(st) {
-  rec.state = st;
+  rec.state = st; if (BORD) $('bord-envoi').hidden = st !== 'idle' || $('bord-envoi').hidden;
   $('ctl-idle').hidden = st !== 'idle'; $('ctl-run').hidden = !(st === 'run' || st === 'pause'); $('ctl-end').hidden = st !== 'end';
   $('rec-dot').className = 'dot' + (st === 'run' ? '' : ' off');
   $('rec-txt').textContent = st === 'run' ? 'Enregistrement' : st === 'pause' ? 'En pause' : st === 'end' ? 'Terminé' : 'À quai';
@@ -468,7 +477,7 @@ $('b-save').onclick = async () => {
     insKeys: INS_KEYS, ins };
   await DB.put(trip); await DB.live(null);
   tr = null; rec = { state: 'idle' }; setState('idle'); line && line.setLatLngs([]); gpsOn(); show();
-  openLog();
+  if (BORD) bordEnvoi(); else openLog();
 };
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); saveLive(); }
@@ -492,6 +501,22 @@ function thumb(pts, w, h) {
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${xy}" fill="none" stroke="${accent()}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const nomFichier = n => (n || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'sortie';
+function gpxSortie(t) { const tt = J.Trace.fromPoints(t.pts.map(p => ({ t: p[0], lat: p[1], lon: p[2], acc: p[3] })), { minStep: 0, maxAcc: 1e9, maxKn: 1e9 }); return tt.toGPX(t.name); }
+function csvSortie(t) {
+  const keys = t.insKeys || INS_KEYS, head = ['heure_utc'].concat(keys).join(';');
+  const rows = (t.ins || []).map(r => [new Date(r[0]).toISOString()].concat(r.slice(1).map(x => x == null ? '' : String(x).replace('.', ','))).join(';'));
+  return head + '\n' + rows.join('\n') + '\n';
+}
+const fichiersSortie = t => { const b = nomFichier(t.name), f = [{ nom: b + '.gpx', contenu: gpxSortie(t) }]; if (t.ins && t.ins.length) f.push({ nom: b + '-instruments.csv', contenu: csvSortie(t) }); return f; };
+// mode Bord : la dernière sortie enregistrée s'envoie d'un geste depuis l'écran Trace (renvoyable tant qu'aucune autre n'a été faite)
+async function bordEnvoi() {
+  if (!BORD) return; const box = $('bord-envoi');
+  const t = (await DB.all()).sort((x, y) => y.start - x.start)[0];
+  box.hidden = !t || rec.state !== 'idle'; if (!t) return;
+  $('bord-envoi-t').textContent = 'Dernière sortie : ' + t.name + ' · ' + fr(t.stats.distanceNM, 1) + ' M · ' + (t.ins && t.ins.length ? t.ins.length + ' relevés du B&G' : 'sans données du B&G');
+  $('b-envoi').onclick = () => { if (NATIVE) Bord.share({ fichiers: fichiersSortie(t) }).catch(() => {}); };
+}
 async function openLog() {
   tab('log');
   const trips = (await DB.all()).sort((x, y) => y.start - x.start), el = $('log');
@@ -531,22 +556,15 @@ async function openTrip(id) {
    <div class="btns"><button class="btn" id="b-del" style="grid-column:1/-1">Supprimer</button></div>
    <div id="del-confirm" hidden class="card"><p style="margin:0 0 8px">Supprimer définitivement cette sortie de ce téléphone ?</p><div class="btns"><button class="btn" id="b-del-no">Garder</button><button class="btn main" id="b-del-yes">Supprimer</button></div></div>
    <p class="dbg">${s.points} points gardés sur ${s.raw || '?'} reçus du GPS · ${s.rejected} écartés (imprécis ou sauts)</p>`;
-  const base = t.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'sortie';
+  const base = nomFichier(t.name);
   const save = (nom, contenu, type) => {
     if (NATIVE) return Bord.share({ nom, contenu }).catch(() => {});
     const blob = new Blob([contenu], { type }), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = nom; document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
   };
-  $('b-gpx').onclick = () => {
-    const tt = J.Trace.fromPoints(t.pts.map(p => ({ t: p[0], lat: p[1], lon: p[2], acc: p[3] })), { minStep: 0, maxAcc: 1e9, maxKn: 1e9 });
-    save(base + '.gpx', tt.toGPX(t.name), 'application/gpx+xml');
-  };
-  $('b-csv').onclick = () => {
-    const keys = t.insKeys || INS_KEYS, head = ['heure_utc'].concat(keys).join(';');
-    const rows = (t.ins || []).map(r => [new Date(r[0]).toISOString()].concat(r.slice(1).map(x => x == null ? '' : String(x).replace('.', ','))).join(';'));
-    save(base + '-instruments.csv', head + '\n' + rows.join('\n') + '\n', 'text/csv');
-  };
+  $('b-gpx').onclick = () => save(base + '.gpx', gpxSortie(t), 'application/gpx+xml');
+  $('b-csv').onclick = () => save(base + '-instruments.csv', csvSortie(t), 'text/csv');
   $('b-del').onclick = () => { $('del-confirm').hidden = false; };
   $('b-del-no').onclick = () => { $('del-confirm').hidden = true; };
   $('b-del-yes').onclick = async () => { await DB.del(t.id); openLog(); };
@@ -675,6 +693,7 @@ $('mes-ok').onclick = () => editer(false);
   $('mes').addEventListener('pointerup', lacher); $('mes').addEventListener('pointercancel', lacher);
 })();
 dessinerMesures();
+bordEnvoi();
 (() => {
   const panel = $('panel'), fold = $('b-fold'), leg = $('legend');
   const setFold = min => {

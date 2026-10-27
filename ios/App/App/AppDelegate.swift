@@ -226,19 +226,23 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
     }
 
     // --- Partage d'un fichier texte (GPX, CSV)
+    // un fichier (nom, contenu) ou plusieurs d'un coup (fichiers : [{nom, contenu}]), dans la même fenêtre de partage
     @objc func share(_ call: CAPPluginCall) {
-        let name = (call.getString("nom") ?? "trace.txt").replacingOccurrences(of: "/", with: "-")
-        let text = call.getString("contenu") ?? ""
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
-        do {
-            try text.write(to: url, atomically: true, encoding: .utf8)
-        } catch {
-            call.reject("Écriture du fichier impossible")
-            return
+        var liste: [(String, String)] = []
+        if let f = call.getArray("fichiers") as? [[String: Any]] {
+            for x in f { liste.append(((x["nom"] as? String) ?? "trace.txt", (x["contenu"] as? String) ?? "")) }
+        } else {
+            liste.append((call.getString("nom") ?? "trace.txt", call.getString("contenu") ?? ""))
+        }
+        var urls: [URL] = []
+        for (nom, texte) in liste {
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(nom.replacingOccurrences(of: "/", with: "-"))
+            do { try texte.write(to: url, atomically: true, encoding: .utf8) } catch { call.reject("Écriture du fichier impossible"); return }
+            urls.append(url)
         }
         DispatchQueue.main.async {
             guard let vc = self.bridge?.viewController else { call.reject("Pas de vue"); return }
-            let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            let sheet = UIActivityViewController(activityItems: urls, applicationActivities: nil)
             sheet.popoverPresentationController?.sourceView = vc.view
             vc.present(sheet, animated: true) { call.resolve() }
         }
