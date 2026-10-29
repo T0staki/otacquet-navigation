@@ -7,8 +7,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Notifications du carnet de bord : le délégué doit être posé avant la fin du lancement, pour recevoir aussi le toucher qui ouvre l'appli
+        UNUserNotificationCenter.current().delegate = OTNotifs.shared
         return true
+    }
+
+    // adresse de l'iPhone pour les notifications (jeton APNs), transmise au module « Bord »
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        OTNotifs.shared.jeton(deviceToken.map { String(format: "%02x", $0) }.joined(), erreur: nil)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        OTNotifs.shared.jeton(nil, erreur: error.localizedDescription)
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
@@ -48,10 +58,41 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 // - lecture du B&G Vulcan 7R : NMEA 0183 en TCP (192.168.76.1:10110 sur le point d'accès du Vulcan), reconnexion automatique ;
 // - GPS de l'iPhone, qui continue écran verrouillé (indicateur bleu de localisation) ;
 // - partage d'un fichier (GPX, CSV) par la feuille de partage d'iOS (Fichiers, AirDrop, Mail…).
-// Côté page : const Bord = Capacitor.registerPlugin('Bord') ; événements « nmea », « etat », « position », « etatgps ».
+// Côté page : const Bord = Capacitor.registerPlugin('Bord') ; événements « nmea », « etat », « position », « etatgps »,
+// et pour le carnet de bord « jetonNotif », « notifTouchee » (méthode notifications).
 
 import Network
 import CoreLocation
+import UserNotifications
+
+// Notifications du carnet de bord (V0.8, 29/10/2026) : affichées même appli ouverte ; un toucher ouvre la tâche
+// (événement « notifTouchee » gardé jusqu'à ce que la page l'écoute, appli lancée par le toucher comprise).
+class OTNotifs: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = OTNotifs()
+    weak var plugin: BordPlugin?
+    var dernierJeton: [String: Any]?
+    var toucheeEnAttente: String?
+    func jeton(_ j: String?, erreur: String?) {
+        #if DEBUG
+        let env = "sandbox"
+        #else
+        let env = "production"
+        #endif
+        dernierJeton = j != nil ? ["jeton": j!, "environnement": env] : ["erreur": erreur ?? "inconnue"]
+        plugin?.envoyerJeton()
+    }
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list, .sound])
+    }
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        if let t = response.notification.request.content.userInfo["tache"] as? String {
+            if let p = plugin { p.ouvrirTache(t) } else { toucheeEnAttente = t }
+        }
+        completionHandler()
+    }
+}
 
 class OTViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
@@ -68,8 +109,24 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
         CAPPluginMethod(name: "disconnect", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "startLocation", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stopLocation", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "share", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "share", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "notifications", returnType: CAPPluginReturnPromise)
     ]
+
+    override public func load() {
+        OTNotifs.shared.plugin = self
+        if let t = OTNotifs.shared.toucheeEnAttente { OTNotifs.shared.toucheeEnAttente = nil; ouvrirTache(t) }
+    }
+
+    // --- Notifications du carnet de bord (appli O'Tacquet seulement) : autorisation, puis adresse de l'iPhone
+    @objc func notifications(_ call: CAPPluginCall) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { ok, err in
+            if ok { DispatchQueue.main.async { UIApplication.shared.registerForRemoteNotifications() } }
+            call.resolve(["autorise": ok, "erreur": err?.localizedDescription ?? ""])
+        }
+    }
+    func envoyerJeton() { if let d = OTNotifs.shared.dernierJeton { notifyListeners("jetonNotif", data: d, retainUntilConsumed: true) } }
+    func ouvrirTache(_ t: String) { notifyListeners("notifTouchee", data: ["tache": t], retainUntilConsumed: true) }
 
     // --- NMEA 0183 en TCP
     private var conn: NWConnection?

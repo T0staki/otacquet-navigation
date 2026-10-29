@@ -24,6 +24,9 @@ python3 "$NAV/outillage/bateau.py" "$SIMU/simulateur.html" "$NAV/www/moteur/bate
 mkdir -p "$NAV/www/moteur/three"
 cp "$SIM/t186/node_modules/three/build/three.module.js" "$SIM/t186/node_modules/three/build/three.core.js" "$SIM/t/node_modules/three/build/three.min.js" "$NAV/www/moteur/three/"
 rm -rf "$TMP"
+# carnet de bord : adresse et clé publique du service en ligne (Supabase), gardées dans le dépôt privé (outillage/carnet.json)
+if [ -f "$SIMU/outillage/carnet.json" ]; then echo "window.OT_CARNET=$(cat "$SIMU/outillage/carnet.json");" > "$NAV/www/moteur/carnet-config.js"
+else echo "window.OT_CARNET=null;" > "$NAV/www/moteur/carnet-config.js"; fi
 # mode de l'appli : « complet » (O'Tacquet, iPhone de Jérémie) ou « bord » (O'Tacquet Bord : Réglages sans vue 3D, Trace, envoi des données)
 echo "window.OT_MODE=\"${OT_MODE:-complet}\";" > "$NAV/www/moteur/mode.js"
 echo "Moteur copié : www/moteur/moteur.js et bateau.html ($VERSION) · mode ${OT_MODE:-complet}"

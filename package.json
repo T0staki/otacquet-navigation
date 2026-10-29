@@ -4,7 +4,7 @@
   "private": true,
   "description": "O'Tacquet en mer : appli de navigation et journal de bord (web et iPhone)",
   "scripts": {
-    "test": "node tests/trace.test.js && node tests/nmea.test.js && node tests/mesures.test.js",
+    "test": "node tests/trace.test.js && node tests/nmea.test.js && node tests/mesures.test.js && node tests/carnet.test.js",
     "ios": "bash outillage/moteur.sh && npx cap sync ios && npx cap open ios",
     "moteur": "bash outillage/moteur.sh"
   },

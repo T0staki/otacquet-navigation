@@ -24,6 +24,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Pour les photos du carnet de bord (voiles, réglages, instruments). La position est retirée avant l'envoi.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Pour lire les instruments du B&amp;G (loch, vent, cap, profondeur, gîte) sur le Wi-Fi du bord.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
