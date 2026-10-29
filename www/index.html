@@ -211,6 +211,11 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
 .c-txt b{font-size:16px;font-weight:600}
 .c-item.fini .c-txt b{font-weight:500;color:var(--ink2);text-decoration:line-through}
 .c-txt span{font-size:13px;color:var(--ink2)}
+.c-diff{font-size:13px;font-weight:600;color:var(--ink2)}
+.c-diff.dur{color:var(--accent)}
+.c-res{margin:0 4px 8px;font-size:13px;color:var(--ink2)}
+.c-effort{display:flex;flex-direction:column;gap:4px}
+.c-effort p{margin:0;font-size:15px;line-height:1.4;color:var(--ink2)}
 .c-refaire{align-self:flex-start;font-style:normal;font-size:13px;font-weight:600;color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:1px 8px;margin-top:2px}
 .c-ok{flex-shrink:0;color:#1F8A4C}
 .c-att{flex-shrink:0;color:var(--ink2)}
@@ -531,7 +536,7 @@ function setState(st) {
 }
 /* Instruments du bord (appli iPhone) : B&G par le Wi-Fi, échantillon toutes les 5 s pendant l'enregistrement. */
 const bord = window.Nmea ? new window.Nmea.Bord() : null; let ins = [], insLast = 0, bgState = '';
-const INS_KEYS = ['stw', 'tws', 'twa', 'twd', 'aws', 'awa', 'heading', 'xdr_heel', 'xdr_trim', 'depth', 'sog', 'cog'];
+const INS_KEYS = ['stw', 'tws', 'twa', 'twd', 'aws', 'awa', 'heading', 'xdr_heel', 'xdr_trim', 'depth', 'sog', 'cog', 'waterTemp'];
 function sampleIns(now) {
   if (!bord || rec.state !== 'run' || now - insLast < 5000) return;
   const v = bord.now(5000, now); if (!Object.keys(v).length) return;
@@ -541,7 +546,7 @@ function showIns() { majMesures(); }
 async function saveLive() { if (tr && rec.state !== 'idle') { try { await DB.live({ id: rec.id, start: rec.start, pts: tr.pts, gaps, ins }); } catch (e) {} } }
 async function start(resume) {
   initMap();
-  if (!resume) { tr = new J.Trace(); rec = { id: Date.now(), start: Date.now(), state: 'run' }; gaps = []; ins = []; line && line.setLatLngs([]); }
+  if (!resume) { tr = new J.Trace(); rec = { id: Date.now(), start: Date.now(), state: 'run', bg0: bord ? [bord.n, bord.bad] : null }; gaps = []; ins = []; line && line.setLatLngs([]); }
   setState('run'); follow = true; gpsOn(); keepAwake();
   clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); }, 1000);
   clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000);
@@ -556,8 +561,9 @@ $('b-save').onclick = async () => {
   const trip = { id: rec.id, name: ($('i-name').value || 'Sortie').trim(), start: s.points ? s.start : rec.start, end: s.points ? s.end : Date.now(),
     stats: { distanceNM: s.distanceNM, durationS: s.durationS, movingS: s.movingS, avgKn: s.avgKn, peakKn: s.peakKn, points: s.points, rejected: s.rejected, raw }, gaps,
     pts: tr.pts.map(p => [p.t, +p.lat.toFixed(6), +p.lon.toFixed(6), p.acc != null ? Math.round(p.acc) : null]),
-    insKeys: INS_KEYS, ins };
+    insKeys: INS_KEYS, ins, bg: bord && rec.bg0 ? { lues: bord.n - rec.bg0[0], rejetees: bord.bad - rec.bg0[1] } : null };   // phrases du B&G pendant la sortie
   await DB.put(trip); await DB.live(null);
+  if (window.CarnetEcran) window.CarnetEcran.ajouterSortie(trip);   // relevés du B&G vers le carnet de bord (sans position)
   tr = null; rec = { state: 'idle' }; setState('idle'); line && line.setLatLngs([]); gpsOn(); show();
   if (BORD) bordEnvoi(); else openLog();
 };
@@ -597,6 +603,13 @@ async function bordEnvoi() {
   const t = (await DB.all()).sort((x, y) => y.start - x.start)[0];
   box.hidden = !t || rec.state !== 'idle'; if (!t) return;
   $('bord-envoi-t').textContent = 'Dernière sortie : ' + t.name + ' · ' + fr(t.stats.distanceNM, 1) + ' M · ' + (t.ins && t.ins.length ? t.ins.length + ' relevés du B&G' : 'sans données du B&G');
+  // les relevés du B&G partent seuls au carnet de bord ; l'envoi par message reste en secours
+  const e = window.CarnetEcran && window.CarnetEcran.etatSortie ? window.CarnetEcran.etatSortie(t.id) : null;
+  $('bord-envoi-p').textContent = e === 'envoyee' ? 'Relevés du B&G envoyés au carnet de Jérémie : rien d’autre à faire. Claude les compare au simulateur.'
+    : e === 'attente' ? 'Relevés du B&G gardés sur l’iPhone : ils partiront tout seuls dès qu’il aura internet (en quittant le Wi-Fi du Vulcan). Si l’appli a été fermée, la rouvrir une fois revenu à terre.'
+    : 'Envoie-la à Jérémie : choisis Messages, WhatsApp ou Mail dans la fenêtre qui s’ouvre.';
+  $('b-envoi').textContent = e ? 'En secours : envoyer par message' : 'Envoyer les données à Jérémie';
+  $('b-envoi').className = e ? 'btn' : 'btn main';
   $('b-envoi').onclick = () => { if (NATIVE) Bord.share({ fichiers: fichiersSortie(t) }).catch(() => {}); };
 }
 async function openLog() {
@@ -812,7 +825,7 @@ bordEnvoi();
   document.addEventListener('contextmenu', e => { if (e.target.closest('[data-leg], .cell')) e.preventDefault(); });
 })();
 /* ---------- Carnet de bord : seulement dans l'appli (adresse du service écrite à la compilation, jamais sur le site public) ---------- */
-if (window.CarnetEcran && window.CarnetEcran.start({ config: window.OT_CARNET, bord: BORD, natif: NATIVE && !BORD ? Bord : null, bg: () => bord ? bord.now(5000) : {}, tab, visible: () => $('v-car').classList.contains('on') })) $('t-car').hidden = false;
+if (window.CarnetEcran && window.CarnetEcran.start({ config: window.OT_CARNET, bord: BORD, natif: NATIVE && !BORD ? Bord : null, surEnvoi: () => bordEnvoi(), bg: () => bord ? bord.now(5000) : {}, tab, visible: () => $('v-car').classList.contains('on') })) { $('t-car').hidden = false; bordEnvoi(); }
 window.__app = { DB, onPos: p => onPos(p), state: () => rec.state, stats: () => tr && tr.stats() };
 </script>
 </body>

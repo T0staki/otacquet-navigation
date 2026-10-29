@@ -25,6 +25,7 @@
   })();
 
   let ctx = null, S = null, d = { taches: [], actions: [], verifications: [], le: 0 }, file = [], brouillons = {}, filtre = 'Tout';
+  let envoyees = [];   // sorties dont les relevés sont arrivés au carnet (identifiants du journal du téléphone)
   let hors = false, occupe = false, ouverte = null, ajoutGenre = 'idee', ajoutPhotos = [], sansPhoto = null, erreurs = [];
   const urls = new Map();   // photo → adresse affichable (locale ou lue sur le service)
   const garderFile = () => LS.set('carnet-file', JSON.stringify(file));
@@ -39,6 +40,7 @@
         try { await S.envoyer(op, pid => PDB.get(pid)); }
         catch (e) { if (!e.definitif) throw e; erreurs.push(e.message); }
         file.shift(); garderFile(); for (const pid of op.photos) PDB.del(pid).catch(() => {});
+        if (op.tripId != null) { envoyees = envoyees.filter(x => x !== op.tripId).concat([op.tripId]).slice(-20); LS.set('carnet-sorties-envoyees', JSON.stringify(envoyees)); if (ctx.surEnvoi) ctx.surEnvoi(); }
       }
       d = await S.lire(!ctx.bord); LS.set('carnet-cache', JSON.stringify(d)); hors = false;
     } catch (e) { hors = true; }
@@ -60,10 +62,10 @@
       : 'Envoi au carnet…';
     $('c-filtres').innerHTML = C.filtres(d).map(f => '<button class="c-chip" data-filtre="' + esc(f) + '" aria-pressed="' + (f === filtre) + '">' + esc(f) + '</button>').join('');
     const g = C.grouper(d, file, filtre);
-    $('c-liste').innerHTML = g.length ? g.map(gr => '<div class="c-grp">' + esc(gr.nom) + '</div>' + gr.items.map(({ t, e }) =>
+    $('c-liste').innerHTML = g.length ? g.filter(gr => !(ctx.bord && gr.reserve)).map(gr => '<div class="c-grp">' + esc(gr.nom) + '</div>' + (gr.reserve ? '<p class="c-res">Retirées après tri : Bord ne les montre pas. À faire toi-même à bord, ou à remettre dans le carnet.</p>' : '') + gr.items.map(({ t, e }) =>
       '<button class="c-item' + (e.fini ? ' fini' : '') + '" data-tache="' + t.id + '">' + icone(t.genre) +
-      '<span class="c-txt"><b>' + esc(t.titre) + '</b><span>' + esc(e.texte) + '</span>' + (e.statut === 'a_refaire' ? '<em class="c-refaire">Claude : à refaire</em>' : '') + '</span>' +
-      (e.statut === 'valide' ? COCHE : e.fini ? ATTENTE : '') + '</button>').join('')).join('')
+      '<span class="c-txt"><b>' + esc(t.titre) + '</b><span>' + esc(e.texte) + '</span>' + (!ctx.bord && !e.fini && C.effort(t) ? '<span class="c-diff' + (t.difficulte === 3 ? ' dur' : '') + '">' + esc(C.effort(t)) + '</span>' : '') + (e.statut === 'a_refaire' ? '<em class="c-refaire">Claude : à refaire</em>' : '') + '</span>' +
+      (e.statut === 'valide' ? COCHE : e.fini && e.statut !== 'reserve' ? ATTENTE : '') + '</button>').join('')).join('')
       : '<div class="card empty">' + (d.le ? 'Rien à faire pour l’instant. Touche + pour ajouter ce que tu as vu à bord.' : hors ? 'Pas encore de liste : il faut du réseau une première fois.' : 'Chargement du carnet…') + '</div>';
   }
 
@@ -83,6 +85,7 @@
     if (!ctx.bord && v && (v.pour_jeremie || v.prochaines)) h += '<div class="card c-analyse">' +
       (v.pour_jeremie ? '<span class="label">Analyse de Claude</span><p>' + esc(v.pour_jeremie) + '</p>' : '') +
       (v.prochaines ? '<span class="label">Prochaines étapes</span><p>' + esc(v.prochaines) + '</p>' : '') + '</div>';
+    if (!ctx.bord && C.effort(t)) h += '<div class="card c-effort"><span class="c-diff' + (t.difficulte === 3 ? ' dur' : '') + '">' + esc(C.effort(t)) + '</span>' + (t.effort ? '<p>' + esc(t.effort) + '</p>' : '') + '</div>';
     if (t.comment || t.quand || t.pourquoi) h += '<div class="card c-consigne">' + (t.comment ? '<p><b>Comment.</b> ' + esc(t.comment) + '</p>' : '') + (t.quand ? '<p><b>Quand.</b> ' + esc(t.quand) + '</p>' : '') + (t.pourquoi ? '<p class="pq"><b>Pourquoi.</b> ' + esc(t.pourquoi) + '</p>' : '') + '</div>';
     const envoyees = photosDe(t).map(ch => ({ cle: 's:' + ch, ch })), locales = br.photos.map(pid => ({ cle: 'l:' + pid, pid }));
     h += '<div class="c-photos">' + envoyees.map(p => '<div class="c-ph"><img data-ph="' + esc(p.cle) + '" alt="Photo envoyée"></div>').join('') +
@@ -152,6 +155,7 @@
     ctx = o; S = new C.Service(o.config, { fetch: (u, x) => fetch(u, x), store: LS });
     file = C.lireFile(LS.get('carnet-file'));
     try { brouillons = JSON.parse(LS.get('carnet-brouillons') || '{}') || {}; } catch (e) { brouillons = {}; }
+    try { envoyees = JSON.parse(LS.get('carnet-sorties-envoyees') || '[]') || []; } catch (e) { envoyees = []; }
     try { const c = JSON.parse(LS.get('carnet-cache') || 'null'); if (c && Array.isArray(c.taches)) d = c; } catch (e) {}
     // les tâches ajoutées encore dans la file restent visibles
     for (const op of file) if (op.tache && !d.taches.some(t => t.id === op.tache.id)) d.taches.push(Object.assign({ ordre: 100, cree_le: op.action.fait_le }, op.tache));
@@ -179,5 +183,14 @@
     dessiner(); synchro();
     return true;
   }
-  root.CarnetEcran = { start, dessiner, synchro, etat: () => ({ d, file, hors, brouillons }) };
+  // appelée à « Enregistrer » une sortie (index.html) : relevés du B&G vers le carnet, tâche « Enregistrer la sortie » cochée
+  function ajouterSortie(trip) {
+    if (!S || !trip || !trip.ins || !trip.ins.length) return;
+    const t = d.taches.find(x => x.cle === 'trace-bg/enregistrement');
+    file.push(C.nouvelleSortie({ trip, bord: ctx.bord, tacheId: t && t.id }));
+    garderFile(); dessiner(); if (ctx.surEnvoi) ctx.surEnvoi(); synchro();
+  }
+  // où en est l'envoi d'une sortie du journal : « attente » (gardée sur le téléphone), « envoyee », ou null (pas de relevés du B&G)
+  const etatSortie = id => file.some(op => op.tripId === id) ? 'attente' : envoyees.includes(id) ? 'envoyee' : null;
+  root.CarnetEcran = { start, dessiner, synchro, ajouterSortie, etatSortie, etat: () => ({ d, file, hors, brouillons }) };
 })(typeof self !== 'undefined' ? self : this);

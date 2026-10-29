@@ -21,7 +21,7 @@
   }
 
   // file d'attente (gardée sur le téléphone) : { id, tache?: {...}, action: {...}, photos: [identifiants locaux] }
-  const lireFile = txt => { try { const f = JSON.parse(txt); return Array.isArray(f) ? f.filter(x => x && x.id && x.action) : []; } catch (e) { return []; } };
+  const lireFile = txt => { try { const f = JSON.parse(txt); return Array.isArray(f) ? f.filter(x => x && x.id && (x.action || x.sortie)) : []; } catch (e) { return []; } };
 
   function nouvelleAction(o) {
     const id = uuid();
@@ -36,36 +36,61 @@
     return op;
   }
 
+  // une sortie enregistrée : ses relevés du B&G (jamais de position), et la tâche « Enregistrer la sortie » cochée si on la connaît
+  function nouvelleSortie(o) {
+    const t = o.trip, keys = (t.insKeys || []).slice(), garder = keys.map(k => !/^(lat|lon|latitude|longitude)$/i.test(k));
+    const sortie = { id: uuid(), appli: o.bord ? 'bord' : 'otacquet', auteur: auteur(o.bord), nom: String(t.name || 'Sortie').slice(0, 200),
+      debut: new Date(t.start).toISOString(), fin: new Date(t.end).toISOString(), distance_nm: t.stats ? Math.round(t.stats.distanceNM * 100) / 100 : null,
+      duree_s: t.stats ? Math.round(t.stats.durationS) : null, ins_keys: keys.filter((_, i) => garder[i]),
+      phrases_lues: t.bg && t.bg.lues >= 0 ? t.bg.lues : null, phrases_rejetees: t.bg && t.bg.rejetees >= 0 ? t.bg.rejetees : null,
+      ins: (t.ins || []).map(r => [r[0]].concat(r.slice(1).filter((_, i) => garder[i]))) };
+    const h = sortie.duree_s ? Math.floor(sortie.duree_s / 3600) + ' h ' + String(Math.round(sortie.duree_s / 60) % 60).padStart(2, '0') : '';
+    const op = o.tacheId ? nouvelleAction({ tacheId: o.tacheId, genre: 'fait', bord: o.bord, now: o.now,
+      note: 'Sortie « ' + sortie.nom + ' » envoyée : ' + sortie.ins.length + (sortie.ins.length > 1 ? ' relevés' : ' relevé') + ' du B&G' + (sortie.distance_nm != null ? ', ' + String(sortie.distance_nm).replace('.', ',') + ' M' : '') + (h ? ' en ' + h : '') + '.' })
+      : { id: uuid(), action: null, photos: [] };
+    if (op.action) op.action.sortie_id = sortie.id;
+    op.sortie = sortie; op.tripId = t.id;   // tripId : la sortie dans le journal du téléphone (écran Trace de Bord : envoyée ou en attente)
+    return op;
+  }
+
   // état d'une tâche vu du téléphone : statut du service, corrigé par ce qui attend dans la file
   function etat(t, d, file) {
     const acts = d.actions.filter(a => a.tache_id === t.id).sort((x, y) => x.fait_le < y.fait_le ? -1 : 1);
     const der = acts.filter(a => a.genre === 'fait' || a.genre === 'pas_possible' || a.genre === 'note').pop();
     const ver = der ? d.verifications.filter(v => v.action_id === der.id).sort((x, y) => x.cree_le < y.cree_le ? -1 : 1).pop() : null;
-    const att = (file || []).filter(op => op.action.tache_id === t.id && op.action.genre !== 'photo').pop();
+    const att = (file || []).filter(op => op.action && op.action.tache_id === t.id && op.action.genre !== 'photo').pop();
     const e = { statut: t.statut, par: der ? der.auteur : null, verif: ver || null, attente: !!att };
     if (att) { e.statut = att.action.genre === 'pas_possible' ? 'pas_possible' : att.tache ? 'propose' : 'envoye'; e.par = att.action.auteur; e.verif = null; }
     const par = e.par ? 'par ' + e.par : '';
     e.texte = e.attente ? 'Gardé sur le téléphone, envoyé au retour du réseau'
       : { a_faire: t.quand || '', envoye: 'Fait ' + par + ' · en attente de Claude', valide: 'Fait ' + par + ' · vérifié par Claude',
           a_refaire: 'Fait ' + par + ' · Claude : à refaire', pas_possible: 'Pas possible ' + par + ' · reste à faire',
-          propose: 'Ajouté ' + par + ' · en attente de Claude' }[e.statut] || '';
-    e.fini = e.statut === 'valide' || e.statut === 'envoye' || e.statut === 'propose';   // plus rien à faire à bord (Claude vérifie)
+          propose: 'Ajouté ' + par + ' · en attente de Claude', reserve: 'Retirée du carnet de Papa' + (t.quand ? ' · ' + t.quand : '') }[e.statut] || '';
+    e.fini = e.statut === 'valide' || e.statut === 'envoye' || e.statut === 'propose' || e.statut === 'reserve';   // plus rien à faire à bord (Claude vérifie, ou tâche en réserve)
     return e;
   }
+  // difficulté et intérêt évalués par Claude, en clair : « Facile · 10 minutes · Intérêt fort »
+  const DIFF = { 1: 'Facile', 2: 'Moyenne', 3: 'Difficile' }, INTERET = { 1: 'Intérêt faible', 2: 'Intérêt moyen', 3: 'Intérêt fort' };
+  const effort = t => [DIFF[t.difficulte], t.duree, INTERET[t.interet]].filter(Boolean).join(' · ');
   const resteAFaire = (d, file) => d.taches.filter(t => !etat(t, d, file).fini).length;
 
-  // groupes dans l'ordre du bord (à quai, au près…), tâches finies en bas de leur groupe
+  // groupes dans l'ordre du bord (à quai, au près…), tâches finies en bas de leur groupe ; les tâches en réserve (retirées
+  // après tri, lues par O'Tacquet seulement) à part, en dernier
+  const RESERVE = 'En réserve', enReserve = t => t.statut === 'reserve';
   function grouper(d, file, filtre) {
-    const out = [], noms = GROUPES.concat([...new Set(d.taches.map(t => t.groupe))].filter(g => !GROUPES.includes(g)));
+    const out = [], actives = d.taches.filter(t => !enReserve(t)), noms = GROUPES.concat([...new Set(actives.map(t => t.groupe))].filter(g => !GROUPES.includes(g)));
     for (const nom of noms) {
       if (filtre && filtre !== 'Tout' && filtre !== nom) continue;
-      const items = d.taches.filter(t => t.groupe === nom).map(t => ({ t, e: etat(t, d, file) }))
+      const items = actives.filter(t => t.groupe === nom).map(t => ({ t, e: etat(t, d, file) }))
         .sort((a, b) => (a.e.fini - b.e.fini) || (a.t.ordre - b.t.ordre) || (a.t.cree_le < b.t.cree_le ? -1 : 1));
       if (items.length) out.push({ nom, items });
     }
+    const res = d.taches.filter(enReserve).map(t => ({ t, e: etat(t, d, file) })).sort((a, b) => (a.t.ordre - b.t.ordre) || (a.t.cree_le < b.t.cree_le ? -1 : 1));
+    if (res.length && (!filtre || filtre === 'Tout' || filtre === RESERVE)) out.push({ nom: RESERVE, items: res, reserve: true });
     return out;
   }
-  const filtres = d => ['Tout'].concat(GROUPES.filter(g => d.taches.some(t => t.groupe === g)), [...new Set(d.taches.map(t => t.groupe))].filter(g => !GROUPES.includes(g)));
+  const filtres = d => { const a = d.taches.filter(t => !enReserve(t));
+    return ['Tout'].concat(GROUPES.filter(g => a.some(t => t.groupe === g)), [...new Set(a.map(t => t.groupe))].filter(g => !GROUPES.includes(g)), d.taches.some(enReserve) ? [RESERVE] : []); };
 
   /* Service en ligne (Supabase, par son interface web) : fetch et stockage fournis, pour tourner aussi dans les tests. */
   class Service {
@@ -103,7 +128,7 @@
     async lire(analyse) {
       const get = async q => { const r = await this.appel('/rest/v1/' + q); if (!r.ok) throw new Error('lecture refusée (' + r.status + ')'); return r.json(); };
       const [taches, actions, verifications] = await Promise.all([
-        get('taches?select=id,cle,chantier,titre,groupe,genre,comment,quand,pourquoi,statut,origine,ordre,cree_le&order=ordre,cree_le'),
+        get('taches?select=id,cle,chantier,titre,groupe,genre,comment,quand,pourquoi,statut,origine,ordre,cree_le,difficulte,interet,duree,effort&order=ordre,cree_le'),
         get('actions?select=id,tache_id,genre,auteur,appli,note,photos,mesures,fait_le&order=fait_le'),
         get('verifications?select=id,action_id,verdict,message,' + (analyse ? 'pour_jeremie,prochaines,' : '') + 'cree_le&order=cree_le')]);
       return { taches, actions, verifications, le: Date.now() };
@@ -120,12 +145,13 @@
         if (!ok(r) && !(r.status === 400 && /exist|Duplicate/i.test(await r.text()))) throw Object.assign(new Error('photo refusée (' + r.status + ')'), { definitif: r.status === 403 || r.status === 413 });
         chemins.push(chemin);
       }
-      const poster = async (table, corps) => {
-        const r = await this.appel('/rest/v1/' + table, { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(corps) });
+      const poster = async (table, corps, prefer) => {
+        const r = await this.appel('/rest/v1/' + table, { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: (prefer || '') + 'return=minimal' }, body: JSON.stringify(corps) });
         if (!ok(r)) throw Object.assign(new Error(table + ' refusé (' + r.status + ')'), { definitif: r.status >= 400 && r.status < 500 && r.status !== 401 && r.status !== 408 && r.status !== 429 });
       };
+      if (op.sortie) await poster('sorties?on_conflict=id', op.sortie, 'resolution=ignore-duplicates,');
       if (op.tache) await poster('taches', op.tache);
-      await poster('actions', Object.assign({}, op.action, { photos: chemins }));
+      if (op.action) await poster('actions', Object.assign({}, op.action, { photos: chemins }));
     }
     // O'Tacquet : adresse de cet iPhone pour les notifications ; déjà connue, l'envoi est ignoré
     async enregistrerAppareil(jeton, environnement) {
@@ -149,6 +175,6 @@
     return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('photo illisible')), 'image/jpeg', 0.85));
   }
 
-  const api = { GROUPES, GENRES, MESURES, auteur, uuid, mesuresBG, lireFile, nouvelleAction, nouvelAjout, etat, resteAFaire, grouper, filtres, Service, reduire };
+  const api = { GROUPES, RESERVE, GENRES, MESURES, DIFF, INTERET, effort, auteur, uuid, mesuresBG, lireFile, nouvelleAction, nouvelAjout, nouvelleSortie, etat, resteAFaire, grouper, filtres, Service, reduire };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Carnet = api;
 })(typeof self !== 'undefined' ? self : this);

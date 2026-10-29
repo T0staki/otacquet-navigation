@@ -17,6 +17,20 @@ const aj = C.nouvelAjout({ titre: '  Le pilote décroche  ', genre: 'zz', detail
 ok(aj.tache.statut === 'propose' && aj.tache.origine === 'otacquet' && aj.tache.titre === 'Le pilote décroche' && aj.tache.genre === 'idee' && aj.action.tache_id === aj.tache.id && aj.action.genre === 'note', 'ajout : tâche proposée et note liée');
 ok(C.lireFile('pas du json').length === 0 && C.lireFile(JSON.stringify([a, { id: 'z' }])).length === 1, 'file d’attente illisible ou incomplète écartée');
 
+// sortie : relevés du B&G sans position, tâche cochée avec le lien vers la sortie
+const trip = { name: 'Sortie du 7 nov.', start: 0, end: 3 * 3600e3, stats: { distanceNM: 12.345, durationS: 3 * 3600 + 5 * 60 },
+  insKeys: ['stw', 'lat', 'tws', 'lon'], ins: [[1000, 5.1, 48.0, 14.2, -3.0], [6000, 5.3, 48.0, 14.8, -3.0]] };   // positions de convention (48° N 3° O)
+const so = C.nouvelleSortie({ trip, bord: true, tacheId: 'tt' });
+ok(so.sortie.ins_keys.join() === 'stw,tws' && so.sortie.ins[0].join() === '1000,5.1,14.2' && !JSON.stringify(so.sortie).includes('48'), 'sortie : position retirée des relevés');
+ok(so.action.tache_id === 'tt' && so.action.sortie_id === so.sortie.id && /2 relevés du B&G, 12,35 M en 3 h 05/.test(so.action.note) && so.sortie.auteur === 'Papa (Bord)', 'sortie : tâche cochée, résumé et lien vers la sortie');
+const so2 = C.nouvelleSortie({ trip, bord: false });
+const so3 = C.nouvelleSortie({ trip: Object.assign({ bg: { lues: 41250, rejetees: 3 } }, trip), bord: true });
+ok(so3.sortie.phrases_lues === 41250 && so3.sortie.phrases_rejetees === 3 && so.sortie.phrases_lues === null, 'sortie : phrases du B&G lues et rejetées jointes');
+ok(so2.action === null && so2.sortie.appli === 'otacquet' && C.lireFile(JSON.stringify([so2])).length === 1, 'sortie sans tâche connue : gardée dans la file quand même');
+
+// difficulté et intérêt en clair
+ok(C.effort({ difficulte: 3, duree: '10 minutes', interet: 3 }) === 'Difficile · 10 minutes · Intérêt fort' && C.effort({}) === '', 'difficulté, durée et intérêt en clair');
+
 // état et groupes
 const d = { taches: [
   { id: 't1', titre: 'Photo bordé', groupe: 'Au près', statut: 'a_faire', ordre: 30, cree_le: '1' },
@@ -38,6 +52,11 @@ const g = C.grouper(d, [], 'Tout');
 ok(g.map(x => x.nom).join('|') === 'À quai, avant de partir|Au près|Mouillage', 'groupes dans l’ordre du bord, groupe inconnu à la fin');
 ok(C.grouper(d, f, 'Au près')[0].items.map(x => x.t.id).join() === 't2,t1', 'filtre, tâches finies en bas');
 ok(C.filtres(d).join('|') === 'Tout|À quai, avant de partir|Au près|Mouillage', 'filtres d’après les tâches');
+// tâches en réserve : retirées du carnet de Papa, à part en dernier dans O'Tacquet, jamais comptées à faire
+const dr = { taches: d.taches.concat([{ id: 't5', titre: 'Photo sous la bordure', groupe: 'Grand largue', statut: 'reserve', ordre: 5, cree_le: '1' }]), actions: d.actions, verifications: d.verifications };
+const gr = C.grouper(dr, [], 'Tout');
+ok(gr.map(x => x.nom).join('|') === 'À quai, avant de partir|Au près|Mouillage|En réserve' && gr[3].reserve && C.resteAFaire(dr, []) === 2, 'réserve : groupe à part en dernier, pas comptée à faire');
+ok(C.filtres(dr).join('|') === 'Tout|À quai, avant de partir|Au près|Mouillage|En réserve' && C.grouper(dr, [], 'En réserve').length === 1, 'réserve : son propre filtre, son groupe d’origine caché');
 
 // service simulé : connexion anonyme, relance du jeton, envoi, doublon
 (async () => {
@@ -59,6 +78,12 @@ ok(C.filtres(d).join('|') === 'Tout|À quai, avant de partir|Au près|Mouillage'
   const op = C.nouvelleAction({ tacheId: 't1', genre: 'fait', bord: true, photos: ['p9'] });
   await S.envoyer(op, async () => 'blob');
   ok(appels[0][0].startsWith('/auth/v1/token') && appels[1][0] === '/storage/v1/object/photos/u1/' + op.id + '-p9.jpg' && appels[2][0] === '/rest/v1/actions', 'jeton expiré : relancé ; photo dans le dossier du téléphone, puis l’action');
+  appels.length = 0; reponses = [rep(201, {}), rep(201, {})];
+  await S.envoyer(so, async () => null);
+  ok(appels[0][0] === '/rest/v1/sorties?on_conflict=id' && /ignore-duplicates/.test(appels[0][2].Prefer) && appels[1][0] === '/rest/v1/actions', 'sortie : relevés envoyés avant la tâche cochée, sans doublon');
+  appels.length = 0; reponses = [rep(201, {})];
+  await S.envoyer(so2, async () => null);
+  ok(appels.length === 1 && appels[0][0] === '/rest/v1/sorties?on_conflict=id', 'sortie sans tâche : seuls les relevés partent');
   reponses = [rep(409, {})];
   let err = null; try { await S.envoyer(C.nouvelleAction({ tacheId: 't1', genre: 'fait', bord: true }), async () => null); } catch (e) { err = e; }
   ok(!err, 'doublon d’un envoi interrompu : compté comme envoyé');
