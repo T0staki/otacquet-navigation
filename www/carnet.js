@@ -9,7 +9,9 @@
   const GROUPES = ['À quai, avant de partir', 'Au près', 'Génois enroulé', 'Toute la sortie'];
   const GENRES = { photo: 'Photo à faire', mesure: 'Mesure à faire', verifier: 'À vérifier', idee: 'Idée ou remarque' };
   const MESURES = ['tws', 'twa', 'twd', 'aws', 'awa', 'stw', 'sog', 'heading', 'xdr_heel', 'xdr_trim', 'depth', 'waterTemp'];   // jamais lat, lon
-  const auteur = bord => bord ? 'Papa (Bord)' : "Jérémie (O'Tacquet)";
+  // le nom vient du profil de l'utilisateur (bateau-ecran.js)
+  const auteur = (bord, nom) => (nom || 'Équipier') + (bord ? ' (Bord)' : " (O'Tacquet)");
+  const CLE_SORTIE = 'trace-bg/enregistrement';   // tâche « Enregistrer la sortie » : elle se coche à l'arrivée de la sortie, jamais à la main
   const uuid = () => (root.crypto && root.crypto.randomUUID) ? root.crypto.randomUUID()
     : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
 
@@ -25,27 +27,28 @@
 
   function nouvelleAction(o) {
     const id = uuid();
-    return { id, action: { id, id_client: id, tache_id: o.tacheId, genre: o.genre, appli: o.bord ? 'bord' : 'otacquet', auteur: auteur(o.bord),
+    return { id, action: { id, id_client: id, tache_id: o.tacheId, genre: o.genre, appli: o.bord ? 'bord' : 'otacquet', auteur: auteur(o.bord, o.nom),
       note: o.note ? String(o.note).slice(0, 2000) : null, mesures: mesuresBG(o.v), fait_le: new Date(o.now != null ? o.now : Date.now()).toISOString() }, photos: o.photos || [] };
   }
   // un ajout depuis l'appli : une tâche « proposée » et une note qui porte l'auteur, le B&G et les photos
   function nouvelAjout(o) {
-    const tid = uuid(), op = nouvelleAction({ tacheId: tid, genre: 'note', bord: o.bord, note: o.detail, v: o.v, photos: o.photos, now: o.now });
+    const tid = uuid(), op = nouvelleAction({ tacheId: tid, genre: 'note', bord: o.bord, nom: o.nom, note: o.detail, v: o.v, photos: o.photos, now: o.now });
     op.tache = { id: tid, titre: String(o.titre || '').trim().slice(0, 200) || 'Sans titre', genre: GENRES[o.genre] ? o.genre : 'idee',
-      groupe: o.groupe || 'Toute la sortie', comment: o.detail || null, statut: 'propose', origine: o.bord ? 'bord' : 'otacquet' };
+      groupe: o.groupe || 'Toute la sortie', comment: o.detail || null, statut: 'propose', origine: o.bord ? 'bord' : 'otacquet', bateau: o.bateau || 'b31' };
     return op;
   }
 
   // une sortie enregistrée : ses relevés du B&G (jamais de position), et la tâche « Enregistrer la sortie » cochée si on la connaît
   function nouvelleSortie(o) {
     const t = o.trip, keys = (t.insKeys || []).slice(), garder = keys.map(k => !/^(lat|lon|latitude|longitude)$/i.test(k));
-    const sortie = { id: uuid(), appli: o.bord ? 'bord' : 'otacquet', auteur: auteur(o.bord), nom: String(t.name || 'Sortie').slice(0, 200),
+    const v = t.voilure || {};
+    const sortie = { id: uuid(), bateau: o.bateau || 'b31', ris: v.ris != null ? v.ris : null, genois: v.genois || null, appli: o.bord ? 'bord' : 'otacquet', auteur: auteur(o.bord, o.nom), nom: String(t.name || 'Sortie').slice(0, 200),
       debut: new Date(t.start).toISOString(), fin: new Date(t.end).toISOString(), distance_nm: t.stats ? Math.round(t.stats.distanceNM * 100) / 100 : null,
       duree_s: t.stats ? Math.round(t.stats.durationS) : null, ins_keys: keys.filter((_, i) => garder[i]),
       phrases_lues: t.bg && t.bg.lues >= 0 ? t.bg.lues : null, phrases_rejetees: t.bg && t.bg.rejetees >= 0 ? t.bg.rejetees : null,
       ins: (t.ins || []).map(r => [r[0]].concat(r.slice(1).filter((_, i) => garder[i]))) };
     const h = sortie.duree_s ? Math.floor(sortie.duree_s / 3600) + ' h ' + String(Math.round(sortie.duree_s / 60) % 60).padStart(2, '0') : '';
-    const op = o.tacheId ? nouvelleAction({ tacheId: o.tacheId, genre: 'fait', bord: o.bord, now: o.now,
+    const op = o.tacheId ? nouvelleAction({ tacheId: o.tacheId, genre: 'fait', bord: o.bord, nom: o.nom, now: o.now,
       note: 'Sortie « ' + sortie.nom + ' » envoyée : ' + sortie.ins.length + (sortie.ins.length > 1 ? ' relevés' : ' relevé') + ' du B&G' + (sortie.distance_nm != null ? ', ' + String(sortie.distance_nm).replace('.', ',') + ' M' : '') + (h ? ' en ' + h : '') + '.' })
       : { id: uuid(), action: null, photos: [] };
     if (op.action) op.action.sortie_id = sortie.id;
@@ -99,6 +102,8 @@
       this.session = null; try { this.session = JSON.parse(this.store.get('carnet-session') || 'null'); } catch (e) {}
     }
     garder(s) { this.session = s; this.store.set('carnet-session', JSON.stringify(s)); }
+    // identité retrouvée dans le trousseau de l'iPhone : elle prime sur celle de la page
+    restaurer(txt) { try { const s = JSON.parse(txt); if (s && s.uid && (!this.session || this.session.uid !== s.uid)) this.garder(s); } catch (e) {} }
     // un seul renouvellement à la fois : les lectures simultanées attendent le même jeton
     jeton() {
       const s = this.session;
@@ -128,10 +133,21 @@
     async lire(analyse) {
       const get = async q => { const r = await this.appel('/rest/v1/' + q); if (!r.ok) throw new Error('lecture refusée (' + r.status + ')'); return r.json(); };
       const [taches, actions, verifications] = await Promise.all([
-        get('taches?select=id,cle,chantier,titre,groupe,genre,comment,quand,pourquoi,statut,origine,ordre,cree_le,difficulte,interet,duree,effort&order=ordre,cree_le'),
+        get('taches?select=id,bateau,cle,chantier,titre,groupe,genre,comment,quand,pourquoi,statut,origine,ordre,cree_le,difficulte,interet,duree,effort&order=ordre,cree_le'),
         get('actions?select=id,tache_id,genre,auteur,appli,note,photos,mesures,fait_le&order=fait_le'),
         get('verifications?select=id,action_id,verdict,message,' + (analyse ? 'pour_jeremie,prochaines,' : '') + 'cree_le&order=cree_le')]);
       return { taches, actions, verifications, le: Date.now() };
+    }
+    async lecture(q) { const r = await this.appel('/rest/v1/' + q); if (!r.ok) throw new Error('lecture refusée (' + r.status + ')'); return r.json(); }
+    lireBateaux() { return this.lecture('bateaux?select=id,nom,modele,port,simulateur,ordre&order=ordre,cree_le'); }
+    lireSorties() { return this.lecture('sorties?select=id,bateau,nom,debut,ris,genois&order=debut.desc'); }
+    releves(id) { return this.lecture('sorties?id=eq.' + encodeURIComponent(id) + '&select=ins_keys,ins').then(l => l[0] || null); }
+    async lireProfil() { await this.jeton(); const l = await this.lecture('profils?uid=eq.' + encodeURIComponent(this.session.uid) + '&select=nom,bateau'); return l[0] || null; }
+    async ecrireProfil(p) {
+      await this.jeton();
+      const r = await this.appel('/rest/v1/profils?on_conflict=uid', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ uid: this.session.uid, nom: String(p.nom).trim().slice(0, 60), bateau: p.bateau, maj_le: new Date().toISOString() }) });
+      if (!r.ok) throw new Error('profil refusé (' + r.status + ')');
     }
     // envoie une opération de la file ; « dejà là » (doublon d'un envoi interrompu) compte comme réussi
     async envoyer(op, photo) {
@@ -175,6 +191,6 @@
     return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('photo illisible')), 'image/jpeg', 0.85));
   }
 
-  const api = { GROUPES, RESERVE, GENRES, MESURES, DIFF, INTERET, effort, auteur, uuid, mesuresBG, lireFile, nouvelleAction, nouvelAjout, nouvelleSortie, etat, resteAFaire, grouper, filtres, Service, reduire };
+  const api = { CLE_SORTIE, GROUPES, RESERVE, GENRES, MESURES, DIFF, INTERET, effort, auteur, uuid, mesuresBG, lireFile, nouvelleAction, nouvelAjout, nouvelleSortie, etat, resteAFaire, grouper, filtres, Service, reduire };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Carnet = api;
 })(typeof self !== 'undefined' ? self : this);

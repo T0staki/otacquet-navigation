@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import Security
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -110,12 +111,33 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
         CAPPluginMethod(name: "startLocation", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stopLocation", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "share", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "notifications", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "notifications", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "secretLire", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "secretEcrire", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
         OTNotifs.shared.plugin = self
         if let t = OTNotifs.shared.toucheeEnAttente { OTNotifs.shared.toucheeEnAttente = nil; ouvrirTache(t) }
+    }
+
+    // --- Identité du téléphone pour le carnet de bord, gardée dans le trousseau : elle survit à la page et à une réinstallation
+    private func requeteSecret(_ cle: String) -> [String: Any] {
+        return [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: "otacquet-carnet", kSecAttrAccount as String: cle]
+    }
+    @objc func secretLire(_ call: CAPPluginCall) {
+        var q = requeteSecret(call.getString("cle") ?? ""); q[kSecReturnData as String] = true; q[kSecMatchLimit as String] = kSecMatchLimitOne
+        var res: AnyObject?
+        if SecItemCopyMatching(q as CFDictionary, &res) == errSecSuccess, let d = res as? Data, let t = String(data: d, encoding: .utf8) { call.resolve(["valeur": t]) } else { call.resolve([:]) }
+    }
+    @objc func secretEcrire(_ call: CAPPluginCall) {
+        let q = requeteSecret(call.getString("cle") ?? ""), d = Data((call.getString("valeur") ?? "").utf8)
+        var s = SecItemUpdate(q as CFDictionary, [kSecValueData as String: d] as CFDictionary)
+        if s == errSecItemNotFound {
+            var a = q; a[kSecValueData as String] = d; a[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            s = SecItemAdd(a as CFDictionary, nil)
+        }
+        if s == errSecSuccess { call.resolve() } else { call.reject("trousseau : \(s)") }
     }
 
     // --- Notifications du carnet de bord (appli O'Tacquet seulement) : autorisation, puis adresse de l'iPhone

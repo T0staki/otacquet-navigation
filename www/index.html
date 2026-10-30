@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="fiche-bateau.css">
 <style>
 /* Instrument de bord, lisible en plein soleil : fond gris d'écume, encre presque noire, un seul accent (orange de balisage). */
 :root{--bg:#EEF2F3;--card:#FFFFFF;--ink:#0D1417;--ink2:#4B575C;--line:#D3DADD;--accent:#B83A0B;--onaccent:#FFFFFF;--sea:#CFE3EA;--rec:#C8281E;
@@ -196,6 +197,10 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
 .lof{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding:10px 12px;border-radius:12px;border:1.5px solid var(--accent);font-size:14px;line-height:1.35}
 .lof.fort{background:var(--accent);color:#FFFFFF}
 /* Carnet de bord (onglet « Carnet », carnet-ecran.js) : tâches à faire à bord, retour de Claude */
+.voilure{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+#v-bat .bat-corps{flex:1;min-height:0;overflow-y:auto;padding:0 max(14px,env(safe-area-inset-right,0px)) 16px max(14px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
+#b-profil{display:flex;flex-direction:column;gap:6px}
+#b-profil select{width:100%}
 .tab{position:relative}
 .t-n{position:absolute;top:3px;left:calc(50% + 7px);min-width:18px;height:18px;border-radius:9px;background:var(--accent);color:var(--onaccent);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 4px}
 .c-band{margin:0 max(14px,env(safe-area-inset-right,0px)) 6px max(14px,env(safe-area-inset-left,0px));padding:9px 12px;border-radius:12px;border:1.5px solid var(--accent);background:var(--card);font-size:14px;line-height:1.35}
@@ -283,6 +288,9 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
     <div id="ctl-end" hidden class="endbox">
       <label class="note" for="i-name">Nom de la sortie</label>
       <input class="name" id="i-name" autocomplete="off">
+      <span class="note">Voilure la plus utilisée pendant la sortie (facultatif)</span>
+      <div class="voilure" id="i-ris"><button class="c-chip" data-v="0" aria-pressed="false">Grand-voile pleine</button><button class="c-chip" data-v="1" aria-pressed="false">1 ris</button><button class="c-chip" data-v="2" aria-pressed="false">2 ris</button></div>
+      <div class="voilure" id="i-genois"><button class="c-chip" data-v="deroule" aria-pressed="false">Génois déroulé</button><button class="c-chip" data-v="roule" aria-pressed="false">Génois roulé</button></div>
       <div class="btns"><button class="btn" id="b-cancel">Reprendre</button><button class="btn main" id="b-save">Enregistrer</button></div>
     </div>
     <p class="note" id="rec-note">Garde l'écran allumé pendant l'enregistrement : sur iPhone, Safari coupe le GPS quand l'écran se verrouille.</p>
@@ -363,6 +371,14 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
 </section>
 
 <!-- Carnet de bord : choses à faire, vérifier, photographier pendant les sorties (carnet-ecran.js) -->
+<section class="view" id="v-bat" aria-label="Bateau">
+  <header class="top"><div><h1>Bateau</h1><span class="sub">La même fiche pour chaque bateau</span></div></header>
+  <div class="bat-corps fb-vars" id="b-corps">
+    <div class="fb-card" id="b-profil"></div>
+    <div class="fb-choix" id="b-choix" role="group" aria-label="Bateaux affichés"></div>
+    <div id="b-fiche"></div>
+  </div>
+</section>
 <section class="view" id="v-car" aria-label="Carnet de bord">
   <div class="top">
     <div style="min-width:0"><h1>Carnet de bord</h1><div class="sub" id="c-sub">Chargement…</div></div>
@@ -421,6 +437,8 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18c3-1 3-6 6-7s5 3 8 1"></path><circle cx="4" cy="18" r="2"></circle><circle cx="18" cy="12" r="2"></circle></svg>Journal</button>
   <button class="tab" id="t-car" hidden>
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"></path><path d="M4 6l1 1 2-2M4 12l1 1 2-2"></path><circle cx="5" cy="18" r="1.2"></circle></svg>Carnet<span class="t-n" id="t-car-n" hidden></span></button>
+  <button class="tab" id="t-bat" hidden>
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v13M12 4l6 12h-6M10 8l-4 8h4M3 19c3 2 6 2 9 0s6-2 9 0"></path></svg><span>Bateau</span></button>
 </nav>
 </div>
 
@@ -432,8 +450,12 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
 <script src="reglages.js"></script>
 <script src="moteur/mode.js"></script>
 <script src="moteur/carnet-config.js"></script>
+<script src="moteur/flotte.js"></script>
 <script src="carnet.js"></script>
 <script src="carnet-ecran.js"></script>
+<script src="polaire.js"></script>
+<script src="fiche-bateau.js"></script>
+<script src="bateau-ecran.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -489,6 +511,7 @@ $('b-center').onclick = () => { follow = true; $('b-center').hidden = true; if (
 let tr = null, watch = null, rec = { state: 'idle' }, last = null, raw = 0, wake = null, tick = null, hiddenAt = 0, gaps = [];
 async function keepAwake() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible') { wake = await navigator.wakeLock.request('screen'); } } catch (e) { wake = null; } }
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+try { window.OT_BATEAU = (JSON.parse(localStorage.getItem('carnet-profil')) || {}).bateau; } catch (e) {}   // bateau du profil, pour Réglages et la vue 3D
 const BORD = window.OT_MODE === 'bord';   // appli « O'Tacquet Bord » (outillage/moteur.sh avec OT_MODE=bord)
 if (BORD) document.body.classList.add('bord');
 // mesures de l'écran Trace, dans l'ordre choisi (gardé sur le téléphone) ; edition : écran des mesures en cours de modification
@@ -553,7 +576,16 @@ async function start(resume) {
 }
 $('b-start').onclick = () => start(false);
 $('b-pause').onclick = () => { if (rec.state === 'run') { setState('pause'); saveLive(); } else { setState('run'); keepAwake(); } };
-$('b-stop').onclick = () => { setState('end'); const d = new Date(rec.start); $('i-name').value = 'Sortie du ' + d.getDate() + ' ' + MOIS[d.getMonth()]; saveLive(); };
+$('b-stop').onclick = () => { setState('end'); const d = new Date(rec.start); $('i-name').value = 'Sortie du ' + d.getDate() + ' ' + MOIS[d.getMonth()]; choisirVoilure(); saveLive(); };
+// voilure la plus utilisée : deux touches facultatives à la fin de la sortie (le B&G ne la connaît pas)
+let voilure = {};
+function choisirVoilure() { voilure = {}; for (const id of ['i-ris', 'i-genois']) for (const b of $(id).children) b.setAttribute('aria-pressed', 'false'); }
+for (const [id, cle] of [['i-ris', 'ris'], ['i-genois', 'genois']]) $(id).addEventListener('click', e => {
+  const b = e.target.closest('[data-v]'); if (!b) return;
+  const v = cle === 'ris' ? +b.dataset.v : b.dataset.v, retire = voilure[cle] === v;
+  if (retire) delete voilure[cle]; else voilure[cle] = v;
+  for (const x of $(id).children) x.setAttribute('aria-pressed', String(!retire && x === b));
+});
 $('b-cancel').onclick = () => setState('run');
 $('b-save').onclick = async () => {
   gpsOff(); clearInterval(tick); clearInterval(rec.saver);
@@ -561,7 +593,7 @@ $('b-save').onclick = async () => {
   const trip = { id: rec.id, name: ($('i-name').value || 'Sortie').trim(), start: s.points ? s.start : rec.start, end: s.points ? s.end : Date.now(),
     stats: { distanceNM: s.distanceNM, durationS: s.durationS, movingS: s.movingS, avgKn: s.avgKn, peakKn: s.peakKn, points: s.points, rejected: s.rejected, raw }, gaps,
     pts: tr.pts.map(p => [p.t, +p.lat.toFixed(6), +p.lon.toFixed(6), p.acc != null ? Math.round(p.acc) : null]),
-    insKeys: INS_KEYS, ins, bg: bord && rec.bg0 ? { lues: bord.n - rec.bg0[0], rejetees: bord.bad - rec.bg0[1] } : null };   // phrases du B&G pendant la sortie
+    insKeys: INS_KEYS, ins, voilure: Object.assign({}, voilure), bg: bord && rec.bg0 ? { lues: bord.n - rec.bg0[0], rejetees: bord.bad - rec.bg0[1] } : null };   // phrases du B&G pendant la sortie
   await DB.put(trip); await DB.live(null);
   if (window.CarnetEcran) window.CarnetEcran.ajouterSortie(trip);   // relevés du B&G vers le carnet de bord (sans position)
   tr = null; rec = { state: 'idle' }; setState('idle'); line && line.setLatLngs([]); gpsOn(); show();
@@ -671,7 +703,8 @@ function tab(w) {
   $('v-set').classList.toggle('on', w === 'set'); $('t-set').setAttribute('aria-current', w === 'set' ? 'page' : 'false');
   $('v-rec').classList.toggle('on', w === 'rec'); $('v-log').classList.toggle('on', w === 'log'); $('v-trip').classList.toggle('on', w === 'trip');
   $('t-rec').setAttribute('aria-current', w === 'rec' ? 'page' : 'false'); $('t-log').setAttribute('aria-current', w === 'log' || w === 'trip' ? 'page' : 'false');
-  for (const v of ['car', 'tache', 'ajout']) $('v-' + v).classList.toggle('on', w === v);
+  for (const v of ['car', 'tache', 'ajout', 'bat']) $('v-' + v).classList.toggle('on', w === v);
+  $('t-bat').setAttribute('aria-current', w === 'bat' ? 'page' : 'false');
   $('t-car').setAttribute('aria-current', w === 'car' || w === 'tache' || w === 'ajout' ? 'page' : 'false');
   if (w === 'rec' && map) setTimeout(() => map.invalidateSize(), 0);
 }
@@ -679,6 +712,7 @@ $('t-rec').onclick = () => tab('rec');
 $('t-set').onclick = () => { tab('set'); window.Reglages && window.Reglages.render(); };
 $('t-log').onclick = () => openLog();
 $('t-car').onclick = () => { tab('car'); window.CarnetEcran.dessiner(); };
+$('t-bat').onclick = () => { tab('bat'); window.BateauEcran.dessiner(); };
 
 /* ---------- Démarrage : reprise d'un enregistrement interrompu ---------- */
 (async () => {
@@ -825,7 +859,8 @@ bordEnvoi();
   document.addEventListener('contextmenu', e => { if (e.target.closest('[data-leg], .cell')) e.preventDefault(); });
 })();
 /* ---------- Carnet de bord : seulement dans l'appli (adresse du service écrite à la compilation, jamais sur le site public) ---------- */
-if (window.CarnetEcran && window.CarnetEcran.start({ config: window.OT_CARNET, bord: BORD, natif: NATIVE && !BORD ? Bord : null, surEnvoi: () => bordEnvoi(), bg: () => bord ? bord.now(5000) : {}, tab, visible: () => $('v-car').classList.contains('on') })) { $('t-car').hidden = false; bordEnvoi(); }
+if (window.CarnetEcran && window.CarnetEcran.start({ config: window.OT_CARNET, secret: NATIVE ? { lire: () => Bord.secretLire({ cle: 'carnet-session' }).then(r => r.valeur), ecrire: valeur => Bord.secretEcrire({ cle: 'carnet-session', valeur }) } : null, bord: BORD, natif: NATIVE && !BORD ? Bord : null, surEnvoi: () => bordEnvoi(), bg: () => bord ? bord.now(5000) : {}, tab, visible: () => $('v-car').classList.contains('on') })) { $('t-car').hidden = false; bordEnvoi();
+  if (window.BateauEcran.start({ service: window.CarnetEcran.service(), pret: window.CarnetEcran.pret(), config: window.OT_CARNET, bord: BORD, tab })) $('t-bat').hidden = false; }
 window.__app = { DB, onPos: p => onPos(p), state: () => rec.state, stats: () => tr && tr.stats() };
 </script>
 </body>

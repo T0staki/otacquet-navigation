@@ -334,7 +334,7 @@
   const DIAG3D = false;   // true : version de mesure du rendu 3D (essais de 8 s chronométrés, résultats à l’écran et dans le journal de l’appli), voir outillage/bateau.py
   let plein = null, envoi = '';
   function ouvrirPlein() {
-    const c = conditions(), q = ['boat=b31', 'go=1', 'live=0', 'view=chase'].concat(DIAG3D ? ['diag=1'] : []);
+    const c = conditions(), q = ['boat=' + (window.OT_BATEAU || 'b31'), 'go=1', 'live=0', 'view=chase'].concat(DIAG3D ? ['diag=1'] : []);
     if (c.tws != null) q.push('tws=' + Math.max(3, Math.round(c.tws)));
     if (c.twd != null) q.push('twd=' + ((Math.round(c.twd / 5) * 5) % 360));
     $('v-boat').hidden = false; $('pl-load').hidden = false; $('pl-info').hidden = false; envoi = '';
@@ -382,7 +382,7 @@
     // ctx : { bord, last() → dernière position GPS, visible() → écran affiché }
     start(c) {
       if (!window.OTMoteur) return false;
-      ctx = c; const m = window.OTMoteur.make('b31'); PHY = m.PHY; PHY.setGeo(window.OTMoteur.geo.b31);
+      ctx = c; const bateau = window.OT_BATEAU || 'b31', m = window.OTMoteur.make(bateau); PHY = m.PHY; PHY.setGeo(window.OTMoteur.geo[bateau]);
       $('v-set').addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b) action(b.dataset.act); });
       $('r-list').innerHTML = LIGNES.map(L => ligneHTML(L, false)).join('') + '<p class="note" id="r-list-note" style="margin:6px 0"></p>';
       $('r-expert').innerHTML = EXPERT.map(L => ligneHTML(L, true)).join('');

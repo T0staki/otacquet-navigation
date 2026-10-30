@@ -7,23 +7,26 @@ const ok = (c, m) => { console.log((c ? 'ok    ' : 'ÉCHEC ') + m); if (!c) fail
 const m = C.mesuresBG({ tws: 14.26, twa: -42.04, xdr_heel: 12.35, lat: 48, lon: -3, stw: NaN });
 ok(m.tws === 14.3 && m.twa === -42 && m.xdr_heel === 12.4 && !('lat' in m) && !('lon' in m) && !('stw' in m), 'mesures du B&G arrondies, sans position ni valeur illisible');
 ok(C.mesuresBG({}) === null && C.mesuresBG(null) === null, 'sans B&G : pas de mesures');
-ok(C.auteur(true) === 'Papa (Bord)' && C.auteur(false) === "Jérémie (O'Tacquet)", 'auteur selon l’appli');
+ok(C.auteur(true, 'Anne') === 'Anne (Bord)' && C.auteur(false, 'Anne') === "Anne (O'Tacquet)" && C.auteur(true) === 'Équipier (Bord)', 'auteur : le nom du profil et l’appli');
 
 // actions et ajouts
-const a = C.nouvelleAction({ tacheId: 't1', genre: 'fait', bord: true, note: 'x'.repeat(2500), v: { tws: 10 }, photos: ['p1'], now: 0 });
-ok(a.id === a.action.id && a.action.id_client === a.id && a.action.appli === 'bord' && a.action.auteur === 'Papa (Bord)', 'action : identifiant créé sur le téléphone, auteur Bord');
+const a = C.nouvelleAction({ tacheId: 't1', genre: 'fait', bord: true, nom: 'Anne', note: 'x'.repeat(2500), v: { tws: 10 }, photos: ['p1'], now: 0 });
+ok(a.id === a.action.id && a.action.id_client === a.id && a.action.appli === 'bord' && a.action.auteur === 'Anne (Bord)', 'action : identifiant créé sur le téléphone, auteur Bord');
 ok(a.action.note.length === 2000 && a.photos[0] === 'p1' && a.action.mesures.tws === 10 && a.action.fait_le === '1970-01-01T00:00:00.000Z', 'action : note bornée, photos et mesures, heure à bord');
-const aj = C.nouvelAjout({ titre: '  Le pilote décroche  ', genre: 'zz', detail: 'mer de l’arrière', bord: false });
+const aj = C.nouvelAjout({ titre: '  Le pilote décroche  ', genre: 'zz', detail: 'mer de l’arrière', bord: false, bateau: 'swan' });
+ok(aj.tache.bateau === 'swan', 'ajout : bateau du profil');
 ok(aj.tache.statut === 'propose' && aj.tache.origine === 'otacquet' && aj.tache.titre === 'Le pilote décroche' && aj.tache.genre === 'idee' && aj.action.tache_id === aj.tache.id && aj.action.genre === 'note', 'ajout : tâche proposée et note liée');
 ok(C.lireFile('pas du json').length === 0 && C.lireFile(JSON.stringify([a, { id: 'z' }])).length === 1, 'file d’attente illisible ou incomplète écartée');
 
 // sortie : relevés du B&G sans position, tâche cochée avec le lien vers la sortie
 const trip = { name: 'Sortie du 7 nov.', start: 0, end: 3 * 3600e3, stats: { distanceNM: 12.345, durationS: 3 * 3600 + 5 * 60 },
   insKeys: ['stw', 'lat', 'tws', 'lon'], ins: [[1000, 5.1, 48.0, 14.2, -3.0], [6000, 5.3, 48.0, 14.8, -3.0]] };   // positions de convention (48° N 3° O)
-const so = C.nouvelleSortie({ trip, bord: true, tacheId: 'tt' });
-ok(so.sortie.ins_keys.join() === 'stw,tws' && so.sortie.ins[0].join() === '1000,5.1,14.2' && !JSON.stringify(so.sortie).includes('48'), 'sortie : position retirée des relevés');
-ok(so.action.tache_id === 'tt' && so.action.sortie_id === so.sortie.id && /2 relevés du B&G, 12,35 M en 3 h 05/.test(so.action.note) && so.sortie.auteur === 'Papa (Bord)', 'sortie : tâche cochée, résumé et lien vers la sortie');
+const so = C.nouvelleSortie({ trip: Object.assign({ voilure: { ris: 1, genois: 'roule' } }, trip), bord: true, nom: 'Anne', bateau: 'swan', tacheId: 'tt' });
+ok(so.sortie.bateau === 'swan' && so.sortie.ris === 1 && so.sortie.genois === 'roule', 'sortie : bateau du profil et voilure notée');
+ok(so.sortie.ins_keys.join() === 'stw,tws' && so.sortie.ins[0].join() === '1000,5.1,14.2' && !JSON.stringify(so.sortie.ins).includes('48') && !JSON.stringify(so.sortie.ins_keys).includes('lat'), 'sortie : position retirée des relevés');
+ok(so.action.tache_id === 'tt' && so.action.sortie_id === so.sortie.id && /2 relevés du B&G, 12,35 M en 3 h 05/.test(so.action.note) && so.sortie.auteur === 'Anne (Bord)', 'sortie : tâche cochée, résumé et lien vers la sortie');
 const so2 = C.nouvelleSortie({ trip, bord: false });
+ok(so2.sortie.bateau === 'b31' && so2.sortie.ris === null && so2.sortie.genois === null, 'sortie : voilure facultative');
 const so3 = C.nouvelleSortie({ trip: Object.assign({ bg: { lues: 41250, rejetees: 3 } }, trip), bord: true });
 ok(so3.sortie.phrases_lues === 41250 && so3.sortie.phrases_rejetees === 3 && so.sortie.phrases_lues === null, 'sortie : phrases du B&G lues et rejetées jointes');
 ok(so2.action === null && so2.sortie.appli === 'otacquet' && C.lireFile(JSON.stringify([so2])).length === 1, 'sortie sans tâche connue : gardée dans la file quand même');

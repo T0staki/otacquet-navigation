@@ -27,6 +27,8 @@ rm -rf "$TMP"
 # carnet de bord : adresse et clé publique du service en ligne (Supabase), gardées dans le dépôt privé (outillage/carnet.json)
 if [ -f "$SIMU/outillage/carnet.json" ]; then echo "window.OT_CARNET=$(cat "$SIMU/outillage/carnet.json");" > "$NAV/www/moteur/carnet-config.js"
 else echo "window.OT_CARNET=null;" > "$NAV/www/moteur/carnet-config.js"; fi
+# écran Bateau : fiches, plans et polaires, une seule source (dépôt privé), jamais publiés
+python3 "$SIMU/outillage/flotte.py" "$NAV/www/moteur/flotte.js"
 # mode de l'appli : « complet » (O'Tacquet, iPhone de Jérémie) ou « bord » (O'Tacquet Bord : Réglages sans vue 3D, Trace, envoi des données)
 echo "window.OT_MODE=\"${OT_MODE:-complet}\";" > "$NAV/www/moteur/mode.js"
 echo "Moteur copié : www/moteur/moteur.js et bateau.html ($VERSION) · mode ${OT_MODE:-complet}"

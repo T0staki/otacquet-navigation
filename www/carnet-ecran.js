@@ -24,9 +24,10 @@
     return { put: (id, b) => tx('readwrite', s => s.put(b, id)), get: id => tx('readonly', s => s.get(id)), del: id => tx('readwrite', s => s.delete(id)) };
   })();
 
-  let ctx = null, S = null, d = { taches: [], actions: [], verifications: [], le: 0 }, file = [], brouillons = {}, filtre = 'Tout';
+  let pret = null, ctx = null, S = null, d = { taches: [], actions: [], verifications: [], le: 0 }, file = [], brouillons = {}, filtre = 'Tout';
   let envoyees = [];   // sorties dont les relevés sont arrivés au carnet (identifiants du journal du téléphone)
   let hors = false, occupe = false, ouverte = null, ajoutGenre = 'idee', ajoutPhotos = [], sansPhoto = null, erreurs = [];
+  const qui = () => root.BateauEcran ? { nom: root.BateauEcran.nom(), bateau: root.BateauEcran.bateau() } : {};
   const urls = new Map();   // photo → adresse affichable (locale ou lue sur le service)
   const garderFile = () => LS.set('carnet-file', JSON.stringify(file));
   const garderBrouillons = () => LS.set('carnet-brouillons', JSON.stringify(brouillons));
@@ -34,6 +35,7 @@
 
   async function synchro() {
     if (occupe || !S) return; occupe = true;
+    await pret;
     try {
       while (file.length) {
         const op = file[0];
@@ -42,7 +44,9 @@
         file.shift(); garderFile(); for (const pid of op.photos) PDB.del(pid).catch(() => {});
         if (op.tripId != null) { envoyees = envoyees.filter(x => x !== op.tripId).concat([op.tripId]).slice(-20); LS.set('carnet-sorties-envoyees', JSON.stringify(envoyees)); if (ctx.surEnvoi) ctx.surEnvoi(); }
       }
-      d = await S.lire(!ctx.bord); LS.set('carnet-cache', JSON.stringify(d)); hors = false;
+      d = await S.lire(!ctx.bord);
+      const b = qui().bateau; if (b) d.taches = d.taches.filter(t => !t.bateau || t.bateau === b);   // les tâches du bateau du profil
+      LS.set('carnet-cache', JSON.stringify(d)); hors = false;
     } catch (e) { hors = true; }
     finally { occupe = false; dessiner(); }
   }
@@ -81,6 +85,7 @@
     if (v) h += '<div class="c-verdict ' + (v.verdict === 'valide' ? 'bon' : '') + '"><span>' + esc(e.texte) + ' · ' + hm(v.cree_le) + '</span><p><b>' + (v.verdict === 'valide' ? 'Valable.' : v.verdict === 'a_refaire' ? 'À refaire.' : 'À compléter.') + '</b> ' + esc(v.message) + '</p></div>';
     else if (e.statut !== 'a_faire') h += '<p class="note">' + esc(e.texte) + '</p>';
     h += '<h2 class="c-titre">' + esc(t.titre) + '</h2>';
+    if (t.cle === C.CLE_SORTIE) h += '<p class="note">Cette tâche se coche toute seule quand tu enregistres ta sortie dans l’onglet Trace.</p>';
     // O'Tacquet : analyse de Claude et prochaines étapes, sous le message court (Bord ne les reçoit pas)
     if (!ctx.bord && v && (v.pour_jeremie || v.prochaines)) h += '<div class="card c-analyse">' +
       (v.pour_jeremie ? '<span class="label">Analyse de Claude</span><p>' + esc(v.pour_jeremie) + '</p>' : '') +
@@ -95,6 +100,7 @@
     h += '<p class="note c-pos">La position est retirée des photos avant l’envoi. Le vent et la gîte du B&amp;G sont joints, sans la position. Claude vérifie dès que le téléphone a du réseau.</p>';
     $('c-tache').innerHTML = h;
     $('c-fait').textContent = sansPhoto === t.id && !br.photos.length ? 'Fait, sans photo ?' : 'Fait';
+    $('c-fait').hidden = t.cle === C.CLE_SORTIE;   // cette tâche se coche toute seule quand la sortie arrive au carnet
     $('c-note').oninput = ev => { br.note = ev.target.value; garderBrouillons(); };
     $('c-phplus').onclick = () => prendre(pid => { br.photos.push(pid); garderBrouillons(); dessinerTache(); });
     afficherPhotos();
@@ -115,7 +121,7 @@
     const t = d.taches.find(x => x.id === ouverte); if (!t) return;
     const br = brouillon(t.id);
     if (genre === 'fait' && t.genre === 'photo' && !br.photos.length && !photosDe(t).length && sansPhoto !== t.id) { sansPhoto = t.id; dessinerTache(); return; }
-    file.push(C.nouvelleAction({ tacheId: t.id, genre, bord: ctx.bord, note: br.note, v: ctx.bg(), photos: br.photos.slice() }));
+    file.push(C.nouvelleAction({ tacheId: t.id, genre, bord: ctx.bord, nom: qui().nom, note: br.note, v: ctx.bg(), photos: br.photos.slice() }));
     garderFile(); delete brouillons[t.id]; garderBrouillons();
     ouverte = null; ctx.tab('car'); dessiner(); synchro();
   }
@@ -133,7 +139,7 @@
   /* ---------- Ajout depuis le bateau ---------- */
   function ouvrirAjout() {
     ajoutGenre = 'idee'; ajoutPhotos = []; $('a-titre').value = ''; $('a-detail').value = '';
-    $('a-par').textContent = C.auteur(ctx.bord); dessinerAjout(); ctx.tab('ajout'); setTimeout(() => $('a-titre').focus(), 50);
+    $('a-par').textContent = C.auteur(ctx.bord, qui().nom); dessinerAjout(); ctx.tab('ajout'); setTimeout(() => $('a-titre').focus(), 50);
   }
   function dessinerAjout() {
     $('a-genres').innerHTML = Object.entries(C.GENRES).map(([g, nom]) => '<button class="c-chip" data-genre="' + g + '" aria-pressed="' + (g === ajoutGenre) + '">' + nom + '</button>').join('');
@@ -143,7 +149,7 @@
   }
   function ajouter() {
     if (!$('a-titre').value.trim()) return;
-    file.push(C.nouvelAjout({ titre: $('a-titre').value, genre: ajoutGenre, detail: $('a-detail').value.trim(), bord: ctx.bord, v: ctx.bg(), photos: ajoutPhotos.slice() }));
+    file.push(C.nouvelAjout({ titre: $('a-titre').value, genre: ajoutGenre, detail: $('a-detail').value.trim(), bord: ctx.bord, nom: qui().nom, bateau: qui().bateau, v: ctx.bg(), photos: ajoutPhotos.slice() }));
     // visible tout de suite, même sans réseau
     const op = file[file.length - 1]; d.taches.push(Object.assign({ ordre: 100, cree_le: op.action.fait_le }, op.tache));
     garderFile(); ctx.tab('car'); dessiner(); synchro();
@@ -152,7 +158,11 @@
   /* ---------- Démarrage ---------- */
   function start(o) {
     if (!o.config || !o.config.url || !o.config.cle) return false;
-    ctx = o; S = new C.Service(o.config, { fetch: (u, x) => fetch(u, x), store: LS });
+    ctx = o;
+    // l'identité du téléphone est aussi gardée dans le trousseau de l'iPhone : la page peut perdre ses données, pas le trousseau
+    const store = o.secret ? { get: LS.get, set: (k, v) => { LS.set(k, v); if (k === 'carnet-session') o.secret.ecrire(v).catch(() => {}); } } : LS;
+    S = new C.Service(o.config, { fetch: (u, x) => fetch(u, x), store });
+    pret = o.secret ? o.secret.lire().then(v => { if (v) S.restaurer(v); else if (S.session) o.secret.ecrire(JSON.stringify(S.session)).catch(() => {}); }).catch(() => {}) : Promise.resolve();
     file = C.lireFile(LS.get('carnet-file'));
     try { brouillons = JSON.parse(LS.get('carnet-brouillons') || '{}') || {}; } catch (e) { brouillons = {}; }
     try { envoyees = JSON.parse(LS.get('carnet-sorties-envoyees') || '[]') || []; } catch (e) { envoyees = []; }
@@ -180,17 +190,17 @@
       o.natif.addListener('notifTouchee', n => { synchro().then(() => { if (d.taches.some(t => t.id === n.tache)) ouvrir(n.tache); }); });
       o.natif.notifications().catch(() => {});
     }
-    dessiner(); synchro();
+    dessiner(); pret.then(synchro);
     return true;
   }
   // appelée à « Enregistrer » une sortie (index.html) : relevés du B&G vers le carnet, tâche « Enregistrer la sortie » cochée
   function ajouterSortie(trip) {
     if (!S || !trip || !trip.ins || !trip.ins.length) return;
     const t = d.taches.find(x => x.cle === 'trace-bg/enregistrement');
-    file.push(C.nouvelleSortie({ trip, bord: ctx.bord, tacheId: t && t.id }));
+    file.push(C.nouvelleSortie({ trip, bord: ctx.bord, nom: qui().nom, bateau: qui().bateau, tacheId: t && t.id }));
     garderFile(); dessiner(); if (ctx.surEnvoi) ctx.surEnvoi(); synchro();
   }
   // où en est l'envoi d'une sortie du journal : « attente » (gardée sur le téléphone), « envoyee », ou null (pas de relevés du B&G)
   const etatSortie = id => file.some(op => op.tripId === id) ? 'attente' : envoyees.includes(id) ? 'envoyee' : null;
-  root.CarnetEcran = { start, dessiner, synchro, ajouterSortie, etatSortie, etat: () => ({ d, file, hors, brouillons }) };
+  root.CarnetEcran = { service: () => S, pret: () => pret, start, dessiner, synchro, ajouterSortie, etatSortie, etat: () => ({ d, file, hors, brouillons }) };
 })(typeof self !== 'undefined' ? self : this);
