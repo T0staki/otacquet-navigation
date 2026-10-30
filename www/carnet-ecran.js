@@ -26,7 +26,7 @@
 
   let pret = null, ctx = null, S = null, d = { taches: [], actions: [], verifications: [], le: 0 }, file = [], brouillons = {}, filtre = 'Tout';
   let envoyees = [];   // sorties dont les relevés sont arrivés au carnet (identifiants du journal du téléphone)
-  let hors = false, occupe = false, ouverte = null, ajoutGenre = 'idee', ajoutPhotos = [], sansPhoto = null, erreurs = [];
+  let hors = false, attente = false, occupe = false, ouverte = null, ajoutGenre = 'idee', ajoutPhotos = [], sansPhoto = null, erreurs = [];
   const qui = () => root.BateauEcran ? { nom: root.BateauEcran.nom(), bateau: root.BateauEcran.bateau() } : {};
   const urls = new Map();   // photo → adresse affichable (locale ou lue sur le service)
   const garderFile = () => LS.set('carnet-file', JSON.stringify(file));
@@ -37,6 +37,8 @@
     if (occupe || !S) return; occupe = true;
     await pret;
     try {
+      attente = !(await S.estMembre());
+      if (attente) { hors = false; return; }
       while (file.length) {
         const op = file[0];
         try { await S.envoyer(op, pid => PDB.get(pid)); }
@@ -60,8 +62,8 @@
     const jour = d.le && new Date(d.le).toDateString() === new Date().toDateString();
     $('c-sub').textContent = n + ' à faire' + (!d.le ? '' : jour && !hors ? ' · à jour à ' + hm(d.le) : jour ? ' · liste de ' + hm(d.le) : ' · liste du ' + new Date(d.le).toLocaleDateString('fr-FR') + ' à ' + hm(d.le));
     const band = $('c-band'), k = file.length;
-    band.hidden = !(hors || k || erreurs.length);
-    band.textContent = erreurs.length ? 'Un envoi a été refusé par le carnet (' + erreurs[erreurs.length - 1] + ') : refais-le, ou préviens Jérémie.'
+    band.hidden = !(hors || attente || k || erreurs.length);
+    band.textContent = attente ? 'En attente de validation de ce téléphone. Ce qui est fait reste gardé ici, et partira au carnet dès la validation.' : erreurs.length ? 'Un envoi a été refusé par le carnet (' + erreurs[erreurs.length - 1] + ') : refais-le, ou préviens Jérémie.'
       : hors ? 'Pas de réseau.' + (k ? ' ' + k + (k > 1 ? ' changements gardés' : ' changement gardé') + ' sur le téléphone, envoyé' + (k > 1 ? 's' : '') + ' au carnet dès le retour du réseau.' : ' Liste gardée sur le téléphone.')
       : 'Envoi au carnet…';
     $('c-filtres').innerHTML = C.filtres(d).map(f => '<button class="c-chip" data-filtre="' + esc(f) + '" aria-pressed="' + (f === filtre) + '">' + esc(f) + '</button>').join('');

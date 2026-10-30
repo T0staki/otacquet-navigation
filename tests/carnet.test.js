@@ -96,5 +96,14 @@ ok(C.filtres(dr).join('|') === 'Tout|À quai, avant de partir|Au près|Mouillage
   reponses = [rep(503, {})]; err = null;
   try { await S.envoyer(C.nouvelleAction({ tacheId: 't1', genre: 'fait', bord: true }), async () => null); } catch (e) { err = e; }
   ok(err && !err.definitif, 'service indisponible : on réessaiera');
+  // validation de l'identité
+  reponses = [rep(200, true)]; ok(await S.estMembre() === true, 'identité validée');
+  reponses = [rep(200, false)]; ok(await S.estMembre() === false, 'identité en attente');
+  reponses = [rep(404, {})]; ok(await S.estMembre() === true, 'service plus ancien : pas d\'attente');
+  // panne du service : l'identité du téléphone est gardée
+  const mem2 = { 'carnet-session': JSON.stringify({ access: 'V', refresh: 'R', exp: 1, uid: 'u1' }) }, appels2 = [];
+  const S2 = new C.Service({ url: 'https://x.supabase.co/', cle: 'cle' }, { store: { get: k => mem2[k], set: (k, v) => { mem2[k] = v; } }, fetch: async u => { appels2.push(u); return rep(503, {}); } });
+  let panne = null; try { await S2.jeton(); } catch (e) { panne = e; }
+  ok(panne && appels2.length === 1 && JSON.parse(mem2['carnet-session']).uid === 'u1', 'service en panne : pas de nouvelle identité');
   console.log(fail ? fail + ' échec(s)' : 'tous les tests passent'); process.exit(fail ? 1 : 0);
 })();

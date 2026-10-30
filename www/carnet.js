@@ -116,8 +116,9 @@
       const r = s && s.refresh
         ? await this.fetch(this.url + '/auth/v1/token?grant_type=refresh_token', { method: 'POST', headers: { apikey: this.cle, 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: s.refresh }) })
         : null;
+      if (r && r.status >= 500) throw new Error('service indisponible (' + r.status + ')');   // panne : on garde l'identité, on réessaiera
       let j = r && r.ok ? await r.json() : null;
-      if (!j) {   // première fois, ou session perdue : nouvelle connexion anonyme
+      if (!j) {   // première fois, ou session refusée : nouvelle connexion anonyme
         const r2 = await this.fetch(this.url + '/auth/v1/signup', { method: 'POST', headers: { apikey: this.cle, 'Content-Type': 'application/json' }, body: '{}' });
         if (!r2.ok) throw new Error('connexion refusée (' + r2.status + ')');
         j = await r2.json();
@@ -128,6 +129,13 @@
     async appel(chemin, o) {
       o = o || {}; const h = Object.assign({ apikey: this.cle, Authorization: 'Bearer ' + await this.jeton() }, o.headers || {});
       return this.fetch(this.url + chemin, Object.assign({}, o, { headers: h }));
+    }
+    // identité validée dans la console ? Sinon le téléphone garde ce qui est fait, sans rien envoyer ; service plus ancien : pas d'attente
+    async estMembre() {
+      const r = await this.appel('/rest/v1/rpc/est_membre', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (r.status === 404) return true;
+      if (!r.ok) throw new Error('lecture refusée (' + r.status + ')');
+      return r.json();
     }
     // analyse : l'analyse de Claude et les prochaines étapes, lues seulement par O'Tacquet (Bord n'a que le message court)
     async lire(analyse) {
