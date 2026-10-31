@@ -23,6 +23,9 @@ ok(by('GGA').sats === 12, 'GGA : 12 satellites');
 const b = new Bord().feed(L.join('\r\n'), 1000).now(5000, 2000);
 ok(b.heading > 220 && b.tws === 12.6 && b.twd === 277.5 && b.awa === -40 && b.depth > 10 && b.xdr_heel === -3.1, 'état du bord rempli depuis le flux');
 ok(Object.keys(new Bord().feed(L.join('\n'), 0).now(5000, 10000)).length === 0, 'valeurs de plus de 5 s écartées');
+// phrase réelle du Vulcan (31/10) : l'angle de barre arrive dans XDR
+const barre = new Bord().feed('$IIXDR,C,,C,AIRTEMP,A,-2.7,D,HEEL,A,6.4,D,TRIM,P,,B,BARO,A,-4.7,D,RUDDER*2D\n', 1000).now(5000, 2000);
+ok(barre.rudder === -4.7 && barre.xdr_heel === -2.7, 'angle de barre lu dans XDR');
 // phrase valide non utilisée : ignorée, pas rejetée ; somme de contrôle fausse : rejetée
 const compte = new Bord().feed('$GPGSA,A,3,,,,,,,,,,,,,1.0,1.0,1.0*33\n$WIMWV,57.1,T,12.6,N,A*00\n');
 ok(compte.ignorees === 1 && compte.bad === 1 && compte.n === 0, 'phrases : valides ignorées et rejets comptés à part');

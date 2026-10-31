@@ -133,5 +133,5 @@
     return Object.values(g).filter(l => l.length >= 4).map(l => ({ tws: med(l.map(f => f.tws)), twa: med(l.map(f => f.twa)), stw: med(l.map(f => f.stw)), n: l.length }));
   }
 
-  root.Polaire = { TWS, TWA, FORMES, marque, modele, gardee, versionsDe, fenetres, aQuai, cases, ecart, dessin, pointsMesures, med };
+  root.Polaire = { TWS, TWA, FORMES, marque, modele, gardee, interpoler, versionsDe, fenetres, aQuai, cases, ecart, dessin, pointsMesures, med };
 })(window);

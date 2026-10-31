@@ -67,7 +67,7 @@
           case 'DPT': this.set('depth', p.depth, now); break;
           case 'MTW': this.set('waterTemp', p.waterTemp, now); break;
           case 'VLW': this.set('logTrip', p.waterTrip, now); this.set('gpsTrip', p.groundTrip, now); break;
-          case 'XDR': for (const k in p.values) this.set('xdr_' + k, p.values[k].value, now); break;
+          case 'XDR': for (const k in p.values) this.set('xdr_' + k, p.values[k].value, now); if (p.values.rudder) this.set('rudder', p.values.rudder.value, now); break;   // le Vulcan envoie la barre dans XDR (RUDDER), pas en RSA
           case 'RSA': this.set('rudder', p.rudder, now); break;
         }
       }

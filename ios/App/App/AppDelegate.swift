@@ -1,6 +1,7 @@
 import UIKit
 import Capacitor
 import Security
+import ActivityKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -113,12 +114,36 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
         CAPPluginMethod(name: "share", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "notifications", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "secretLire", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "secretEcrire", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "secretEcrire", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "activiteMaj", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "activiteFin", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
         OTNotifs.shared.plugin = self
         if let t = OTNotifs.shared.toucheeEnAttente { OTNotifs.shared.toucheeEnAttente = nil; ouvrirTache(t) }
+    }
+
+    // --- Écran verrouillé pendant un enregistrement : créé au premier appel, mis à jour ensuite. Jamais la position.
+    @objc func activiteMaj(_ call: CAPPluginCall) {
+        guard #available(iOS 16.2, *) else { call.resolve(); return }
+        let etat = AttributsMer.ContentState(milles: call.getDouble("milles") ?? 0, reelle: call.getDouble("reelle"), theorique: call.getDouble("theorique"), pause: call.getBool("pause") ?? false)
+        let contenu = ActivityContent(state: etat, staleDate: nil)
+        if let a = Activity<AttributsMer>.activities.first {
+            Task { await a.update(contenu); call.resolve() }
+            return
+        }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { call.reject("activités en direct désactivées : Réglages › O'Tacquet › Activités en direct"); return }
+        let attributs = AttributsMer(debut: Date(timeIntervalSince1970: (call.getDouble("debut") ?? Date().timeIntervalSince1970 * 1000) / 1000), bateau: call.getString("bateau") ?? "")
+        do { _ = try Activity.request(attributes: attributs, content: contenu, pushType: nil); call.resolve() }
+        catch { call.reject("\(error)") }
+    }
+    @objc func activiteFin(_ call: CAPPluginCall) {
+        guard #available(iOS 16.2, *) else { call.resolve(); return }
+        Task {
+            for a in Activity<AttributsMer>.activities { await a.end(nil, dismissalPolicy: .immediate) }
+            call.resolve()
+        }
     }
 
     // --- Identité du téléphone pour le carnet de bord, gardée dans le trousseau : elle survit à la page et à une réinstallation
@@ -154,6 +179,7 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
     private var conn: NWConnection?
     private var buffer = Data()
     private let queue = DispatchQueue(label: "otacquet.nmea")
+    private var enAttente: [String] = [], envoiPrevu = false   // phrases du B&G regroupées une fois par seconde, pour la batterie
     private var host = "192.168.76.1"
     private var port: UInt16 = 10110
     private var wanted = false
@@ -244,7 +270,17 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
             }
         }
         if buffer.count > 65536 { buffer.removeAll() }
-        if !lines.isEmpty { notifyListeners("nmea", data: ["lignes": lines.joined(separator: "\n")]) }
+        guard !lines.isEmpty else { return }
+        enAttente.append(contentsOf: lines)
+        if enAttente.count > 2000 { enAttente.removeFirst(enAttente.count - 2000) }
+        guard !envoiPrevu else { return }
+        envoiPrevu = true
+        queue.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let self = self else { return }
+            self.envoiPrevu = false
+            let l = self.enAttente; self.enAttente.removeAll()
+            if !l.isEmpty { self.notifyListeners("nmea", data: ["lignes": l.joined(separator: "\n")]) }
+        }
     }
 
     // --- GPS de l'iPhone, écran verrouillé compris

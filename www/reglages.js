@@ -12,7 +12,8 @@
   // au-dessus du vent lissé, le vent mesuré est une rafale qui fait gîter le bateau avant qu'il accélère (estimé, à ajuster avec les enregistrements)
   const KN = 0.514444, TROP_PRES = 40, LISSAGE = 0.15, RAFALE_S = 120;   // RAFALE_S : fenêtre où l'on cherche la plus forte rafale du B&G
   const rafB = [];   // vent réel du B&G des deux dernières minutes : [instant, TWS]
-  const ALLURES = [['Près', 0, 60], ['Bon plein', 60, 80], ['Travers', 80, 100], ['Largue', 100, 135], ['Grand largue', 135, 165], ['Vent arrière', 165, 181]];
+  const PRES_SERRE = [30, 45];   // vent apparent, Jérémie 31/10
+  const ALLURES = [['Près serré', null, null], ['Près', 0, 60], ['Bon plein', 60, 80], ['Travers', 80, 100], ['Largue', 100, 135], ['Grand largue', 135, 165], ['Vent arrière', 165, 181]];
   const VALS = { bs: [0, 25, 50, 75, 100], car: [0, 25, 50, 75, 100], vang: [0, 25, 50, 75, 100], trav: [-100, -50, 0, 50, 100] };
   let PHY = null, ctx = null, lisse = null, dernier = null, dernier0 = null, enCalcul = false;   // dernier : avec les réglages forcés ; dernier0 : tout en auto
   // man : réglages repris à la main ; val : leur valeur en unités de curseur (écoutes 0-100, génois 0-80 % roulé, chariot −100-100, ris 0-2) ;
@@ -280,7 +281,8 @@
     $('r-aw').setAttribute('transform', 'rotate(' + (awa != null ? awa : 0) + ' 60 60)'); $('r-aw').style.display = awa != null ? '' : 'none';
     $('r-rose').setAttribute('aria-label', c.twa != null ? 'Vent réel à ' + Math.round(A) + '° ' + cote + (awa != null ? ', vent apparent à ' + Math.round(Math.abs(awa)) + '°' : '') : 'Angle du vent inconnu');
     // allures
-    $('r-all').innerHTML = ALLURES.map(([l, lo, hi]) => { const on = A != null && !tooClose && A >= lo && A < hi; return '<span role="listitem"' + (on ? ' aria-current="true" class="on"' : '') + '>' + l + '</span>'; }).join('');
+    const aa = awa != null ? Math.abs(awa) : null, serre = aa != null && aa >= PRES_SERRE[0] && aa < PRES_SERRE[1];
+    $('r-all').innerHTML = ALLURES.map(([l, lo, hi]) => { const on = A != null && !tooClose && (lo == null ? serre : !serre && A >= lo && A < hi); return '<span role="listitem"' + (on ? ' aria-current="true" class="on"' : '') + '>' + l + '</span>'; }).join('');
     // vitesses
     $('r-vm').textContent = c.vm != null ? fr(c.vm, 1) : '–';
     $('r-vmlab').textContent = 'Vitesse réelle · ' + (c.vmSrc === 'loch' ? 'STW' : c.vmSrc === 'GPS' ? 'SOG' : 'en attente');

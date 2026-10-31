@@ -142,7 +142,7 @@ a{color:var(--accent)}
 .hb{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
 .hb button{height:34px;padding:0;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--ink);font-family:inherit;font-weight:600;font-size:14px}
 .lien{border:0;background:none;padding:0;color:var(--accent);font:inherit;font-size:12px;font-weight:600;text-align:left}
-.all{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:3px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px}
+.all{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px}
 .all span{min-height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;line-height:1.1;font-weight:600;color:var(--ink2);padding:2px}
 .all span.on{background:var(--accent);color:var(--onaccent)}
 .vit{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -276,7 +276,7 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
     <div class="grid" id="mes" aria-label="Mesures"></div>
     <div class="card bg" id="bg-panel" hidden>
       <div class="label">Instruments B&amp;G (Wi-Fi)</div>
-      <div class="row"><input id="bg-host" inputmode="decimal" autocomplete="off" aria-label="Adresse du Vulcan" value="192.168.76.1"><input id="bg-port" inputmode="numeric" aria-label="Port" value="10110" style="flex:0 0 90px"></div>
+      <div class="row"><input id="bg-host" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" aria-label="Adresse du Vulcan" value="192.168.76.1"><input id="bg-port" inputmode="numeric" aria-label="Port" value="10110" style="flex:0 0 90px"></div>
       <div class="btns"><button class="btn" id="bg-off">Couper</button><button class="btn main" id="bg-on">Connecter</button></div>
       <p class="note" id="bg-note" style="margin:0">Point d'accès du Vulcan : 192.168.76.1. Si le Vulcan rejoint le partage de connexion de l'iPhone, son adresse commence par 172.20.10 (Réseau › NMEA0183 › Sans fil sur le Vulcan).</p>
       <p class="dbg" id="bg-dbg" style="margin:0"></p>
@@ -510,6 +510,9 @@ $('b-center').onclick = () => { follow = true; $('b-center').hidden = true; if (
 /* ---------- Enregistrement ---------- */
 let tr = null, watch = null, rec = { state: 'idle' }, last = null, raw = 0, wake = null, tick = null, hiddenAt = 0, gaps = [];
 async function keepAwake() { try { if ('wakeLock' in navigator && document.visibilityState === 'visible') { wake = await navigator.wakeLock.request('screen'); } } catch (e) { wake = null; } }
+function signaler(t) { const w = document.getElementById('lock-warn'); if (w) { w.hidden = false; w.textContent = t; } }
+window.addEventListener('error', e => signaler('Erreur de l\'appli : ' + e.message));
+window.addEventListener('unhandledrejection', e => signaler('Erreur de l\'appli : ' + (e.reason && e.reason.message || e.reason)));
 const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
 try { window.OT_BATEAU = (JSON.parse(localStorage.getItem('carnet-profil')) || {}).bateau; } catch (e) {}   // bateau du profil, pour Réglages et la vue 3D
 const BORD = window.OT_MODE === 'bord';   // appli « O'Tacquet Bord » (outillage/moteur.sh avec OT_MODE=bord)
@@ -581,12 +584,33 @@ function suiviMer(force, fin) {
     S.suivreMer({ rec: rec.id, bord: BORD, bateau: window.BateauEcran ? window.BateauEcran.bateau() : null, etat: rec.state === 'run' ? 'run' : 'pause', debut: rec.start, fin, duree_s: Math.round((now - rec.start) / 1000), milles: s ? Math.round(s.distanceNM * 100) / 100 : 0, mesures: bord ? bord.now(5000) : {} }).catch(() => {});
   } catch (e) {}
 }
+/* Écran verrouillé (appli iPhone) : milles, vitesse réelle, vitesse théorique de la polaire gardée ; la durée avance seule. */
+let verrouDernier = 0;
+function vitesseTheorique(v) {
+  try {
+    if (v.tws == null || v.twa == null || !window.Polaire) return null;
+    const m = window.Polaire.gardee(window.BateauEcran ? window.BateauEcran.bateau() : 'b31');
+    return m ? window.Polaire.interpoler(m, v.tws, Math.min(170, Math.abs(v.twa))) : null;
+  } catch (e) { return null; }
+}
+function suiviVerrou() {
+  const now = Date.now();
+  if (!NATIVE || !rec.start || now - verrouDernier < 5000) return;
+  verrouDernier = now;
+  try {
+    const s = tr ? tr.stats() : null, v = bord ? bord.now(5000) : {}, reelle = v.stw != null ? v.stw : last && last.sog != null ? last.sog : null, th = vitesseTheorique(v);
+    const b = window.BateauEcran && window.OT_FLOTTE && window.OT_FLOTTE.fiches.bateaux[window.BateauEcran.bateau()];
+    const o = { debut: rec.start, bateau: b ? b.nom : "O'Tacquet", milles: s ? s.distanceNM : 0, pause: rec.state !== 'run' };
+    if (reelle != null) o.reelle = reelle; if (th != null) o.theorique = th;
+    Bord.activiteMaj(o).catch(e => signaler('Écran verrouillé : ' + (e.message || e)));
+  } catch (e) {}
+}
 async function saveLive() { if (tr && rec.state !== 'idle') { try { await DB.live({ id: rec.id, start: rec.start, pts: tr.pts, gaps, ins }); } catch (e) {} } }
 async function start(resume) {
   initMap();
   if (!resume) { tr = new J.Trace(); rec = { id: Date.now(), start: Date.now(), state: 'run', bg0: bord ? [bord.n, bord.bad] : null }; gaps = []; ins = []; line && line.setLatLngs([]); }
   setState('run'); follow = true; gpsOn(); keepAwake();
-  clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); }, 1000);
+  clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); suiviVerrou(); }, 1000);
   suiviMer(true);
   clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000);
 }
@@ -604,13 +628,14 @@ for (const [id, cle] of [['i-ris', 'ris'], ['i-genois', 'genois']]) $(id).addEve
 });
 $('b-cancel').onclick = () => setState('run');
 $('b-save').onclick = async () => {
-  gpsOff(); clearInterval(tick); clearInterval(rec.saver); suiviMer(true, Date.now());
+  gpsOff(); clearInterval(tick); clearInterval(rec.saver); suiviMer(true, Date.now()); if (NATIVE) Bord.activiteFin().catch(() => {});
+  signaler('Sauvegarde de la sortie…');
   const s = tr.stats();
-  const trip = { id: rec.id, name: ($('i-name').value || 'Sortie').trim(), start: s.points ? s.start : rec.start, end: s.points ? s.end : Date.now(),
+  const trip = { id: rec.id, name: ($('i-name').value || 'Sortie').trim(), start: s.start != null ? s.start : rec.start, end: s.end != null ? s.end : Date.now(),
     stats: { distanceNM: s.distanceNM, durationS: s.durationS, movingS: s.movingS, avgKn: s.avgKn, peakKn: s.peakKn, points: s.points, rejected: s.rejected, raw }, gaps,
     pts: tr.pts.map(p => [p.t, +p.lat.toFixed(6), +p.lon.toFixed(6), p.acc != null ? Math.round(p.acc) : null]),
-    insKeys: INS_KEYS, ins, voilure: Object.assign({}, voilure), bg: bord && rec.bg0 ? { lues: bord.n - rec.bg0[0], rejetees: bord.bad - rec.bg0[1], types: Object.assign({}, bord.types) } : null };   // phrases du B&G pendant la sortie
-  await DB.put(trip); await DB.live(null);
+    insKeys: INS_KEYS, ins, voilure: Object.assign({}, voilure), bg: bord ? { lues: rec.bg0 ? bord.n - rec.bg0[0] : -1, rejetees: rec.bg0 ? bord.bad - rec.bg0[1] : -1, types: Object.assign({}, bord.types) } : null };   // phrases du B&G pendant la sortie
+  await DB.put(trip); signaler('Sortie gardée sur le téléphone.'); await DB.live(null);
   if (window.CarnetEcran) window.CarnetEcran.ajouterSortie(trip);   // relevés du B&G vers le carnet de bord (sans position)
   tr = null; rec = { state: 'idle' }; setState('idle'); line && line.setLatLngs([]); gpsOn(); show();
   if (BORD) bordEnvoi(); else openLog();
@@ -739,7 +764,7 @@ $('t-bat').onclick = () => { tab('bat'); window.BateauEcran.dessiner(); };
       tr = J.Trace.fromPoints([]); tr.pts = lv.pts; rec = { id: lv.id, start: lv.start, state: 'pause' }; gaps = lv.gaps || []; ins = lv.ins || [];
       if (line) line.setLatLngs(lv.pts.map(p => [p.lat, p.lon]));
       const w = $('lock-warn'); w.hidden = false; w.textContent = 'Enregistrement interrompu retrouvé (' + fr(tr.stats().distanceNM, 2) + ' M depuis ' + hm(lv.start) + ') : reprends-le ou termine-le.';
-      setState('pause'); clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); }, 1000); clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000); show();
+      setState('pause'); clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); suiviVerrou(); }, 1000); clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000); show();
     }
   } catch (e) {}
 })();
@@ -749,7 +774,7 @@ if (NATIVE) {
   $('bg-chip').hidden = false;
   Bord.addListener('position', d => onPos({ timestamp: d.t, coords: { latitude: d.lat, longitude: d.lon, accuracy: d.acc, speed: d.sog != null ? d.sog / J.MS_TO_KN : null, heading: d.cog != null ? d.cog : null } }));
   Bord.addListener('etatgps', d => { if (d.etat === 'refuse') $('gps-state').textContent = 'GPS refusé : Réglages › O\'Tacquet › Position'; });
-  Bord.addListener('nmea', d => { bord.feed(d.lignes); $('bg-dbg').textContent = bord.n + ' phrases lues · ' + bord.bad + ' rejetées'; });
+  Bord.addListener('nmea', d => { bord.feed(d.lignes); $('bg-dbg').textContent = bord.n + ' phrases lues · ' + bord.bad + ' rejetées · reçu : ' + Object.keys(bord.types).sort().join(' '); });
   Bord.addListener('etat', d => {
     bgState = d.etat; const ok = d.etat === 'connecte';
     $('bg-chip').classList.toggle('ok', ok); $('bg-dot').className = 'dot' + (ok ? '' : ' off');
@@ -758,7 +783,7 @@ if (NATIVE) {
   });
   const getLS = (k, v) => { try { return localStorage.getItem(k) || v; } catch (e) { return v; } }, setLS = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
   $('bg-host').value = getLS('bg-host', '192.168.76.1'); $('bg-port').value = getLS('bg-port', '10110');
-  const bgConnect = () => { setLS('bg-host', $('bg-host').value.trim()); setLS('bg-port', $('bg-port').value.trim()); Bord.connect({ host: $('bg-host').value.trim(), port: parseInt($('bg-port').value, 10) || 10110 }); };
+  const bgConnect = () => { $('bg-host').value = $('bg-host').value.trim().replace(/,/g, '.'); setLS('bg-host', $('bg-host').value); setLS('bg-port', $('bg-port').value.trim()); Bord.connect({ host: $('bg-host').value.trim(), port: parseInt($('bg-port').value, 10) || 10110 }); };
   $('bg-on').onclick = bgConnect; $('bg-off').onclick = () => Bord.disconnect();
   $('bg-chip').onclick = () => { const p = $('bg-panel'); p.hidden = !p.hidden; $('bg-chip').setAttribute('aria-expanded', String(!p.hidden)); };
   bgConnect();

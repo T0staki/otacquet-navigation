@@ -10,7 +10,7 @@ bash outillage/moteur.sh
 npx cap sync ios >/dev/null
 cd ios/App
 xcodebuild -project App.xcodeproj -scheme App -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath "$NAV/ios/build-otacquet" \
-  -allowProvisioningUpdates DEVELOPMENT_TEAM=56737PA3L2 CODE_SIGN_ENTITLEMENTS=App/App.entitlements build | grep -E "BUILD|error:" | tail -3
+  -allowProvisioningUpdates DEVELOPMENT_TEAM=56737PA3L2 OT_DROITS=App/App.entitlements build | grep -E "BUILD|error:" | tail -3
 APP="$NAV/ios/build-otacquet/Build/Products/Debug-iphoneos/App.app"
 echo "Appli : $APP"
 [ -n "$1" ] && xcrun devicectl device install app --device "$1" "$APP"

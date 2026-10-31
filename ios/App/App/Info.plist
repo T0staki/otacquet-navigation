@@ -26,6 +26,8 @@
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Pour les photos du carnet de bord (voiles, réglages, instruments). La position est retirée avant l'envoi.</string>
 	<key>NSLocalNetworkUsageDescription</key>
