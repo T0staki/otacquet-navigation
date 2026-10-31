@@ -49,13 +49,14 @@
 
   /* État du bord tenu à jour phrase après phrase (chaque valeur garde l'heure de sa dernière mise à jour, en ms). */
   class Bord {
-    constructor() { this.v = {}; this.n = 0; this.bad = 0; }
+    constructor() { this.v = {}; this.n = 0; this.bad = 0; this.ignorees = 0; this.types = {}; }
     set(k, val, t) { if (val != null && isFinite(val)) this.v[k] = { val, t }; }
     feed(text, now) {
       now = now == null ? Date.now() : now;
       for (const line of String(text).split(/\r?\n/)) {
         if (!line.trim()) continue;
-        const p = parse(line); if (!p) { this.bad++; continue; } this.n++;
+        const p = parse(line), ok = !!p || checksumOk(line.trim()), m = ok && /^[$!].{0,2}([A-Z]{3})/.exec(line.trim()); if (m) this.types[m[1]] = (this.types[m[1]] || 0) + 1;
+        if (!p) { if (ok) this.ignorees++; else this.bad++; continue; } this.n++;   // phrase valide que l'appli n'utilise pas : ce n'est pas un rejet
         switch (p.type) {
           case 'RMC': this.set('lat', p.lat, now); this.set('lon', p.lon, now); this.set('sog', p.sog, now); this.set('cog', p.cog, now); break;
           case 'VTG': this.set('sog', p.sog, now); this.set('cog', p.cog, now); break;

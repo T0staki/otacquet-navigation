@@ -100,6 +100,10 @@ ok(C.filtres(dr).join('|') === 'Tout|À quai, avant de partir|Au près|Mouillage
   reponses = [rep(200, true)]; ok(await S.estMembre() === true, 'identité validée');
   reponses = [rep(200, false)]; ok(await S.estMembre() === false, 'identité en attente');
   reponses = [rep(404, {})]; ok(await S.estMembre() === true, 'service plus ancien : pas d\'attente');
+  // suivi en direct : jamais la position
+  let corpsMer = null; const S3 = new C.Service({ url: 'https://x.supabase.co/', cle: 'cle' }, { store: { get: () => JSON.stringify({ access: 'A', refresh: 'R', exp: Date.now() / 1000 + 3600, uid: 'u1' }), set() {} }, fetch: async (u, o) => { corpsMer = JSON.parse(o.body); return rep(201, {}); } });
+  await S3.suivreMer({ rec: 7, bord: true, bateau: 'b31', etat: 'run', debut: 1000, duree_s: 60, milles: 0.5, mesures: { tws: 10.26, stw: 4.5, lat: 48, lon: -2, heading: 100 } });
+  ok(corpsMer.id === 'u1-7' && corpsMer.appli === 'bord' && corpsMer.mesures.tws === 10.3 && !('lat' in corpsMer.mesures) && !('lon' in corpsMer.mesures) && !/"lat|"lon/.test(JSON.stringify(corpsMer)), 'suivi en direct : mesures seules, sans position');
   // panne du service : l'identité du téléphone est gardée
   const mem2 = { 'carnet-session': JSON.stringify({ access: 'V', refresh: 'R', exp: 1, uid: 'u1' }) }, appels2 = [];
   const S2 = new C.Service({ url: 'https://x.supabase.co/', cle: 'cle' }, { store: { get: k => mem2[k], set: (k, v) => { mem2[k] = v; } }, fetch: async u => { appels2.push(u); return rep(503, {}); } });

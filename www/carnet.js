@@ -45,7 +45,7 @@
     const sortie = { id: uuid(), bateau: o.bateau || 'b31', ris: v.ris != null ? v.ris : null, genois: v.genois || null, appli: o.bord ? 'bord' : 'otacquet', auteur: auteur(o.bord, o.nom), nom: String(t.name || 'Sortie').slice(0, 200),
       debut: new Date(t.start).toISOString(), fin: new Date(t.end).toISOString(), distance_nm: t.stats ? Math.round(t.stats.distanceNM * 100) / 100 : null,
       duree_s: t.stats ? Math.round(t.stats.durationS) : null, ins_keys: keys.filter((_, i) => garder[i]),
-      phrases_lues: t.bg && t.bg.lues >= 0 ? t.bg.lues : null, phrases_rejetees: t.bg && t.bg.rejetees >= 0 ? t.bg.rejetees : null,
+      phrases_lues: t.bg && t.bg.lues >= 0 ? t.bg.lues : null, phrases_rejetees: t.bg && t.bg.rejetees >= 0 ? t.bg.rejetees : null, phrases_types: t.bg && t.bg.types ? t.bg.types : null,
       ins: (t.ins || []).map(r => [r[0]].concat(r.slice(1).filter((_, i) => garder[i]))) };
     const h = sortie.duree_s ? Math.floor(sortie.duree_s / 3600) + ' h ' + String(Math.round(sortie.duree_s / 60) % 60).padStart(2, '0') : '';
     const op = o.tacheId ? nouvelleAction({ tacheId: o.tacheId, genre: 'fait', bord: o.bord, nom: o.nom, now: o.now,
@@ -95,6 +95,8 @@
   const filtres = d => { const a = d.taches.filter(t => !enReserve(t));
     return ['Tout'].concat(GROUPES.filter(g => a.some(t => t.groupe === g)), [...new Set(a.map(t => t.groupe))].filter(g => !GROUPES.includes(g)), d.taches.some(enReserve) ? [RESERVE] : []); };
 
+  const mesuresMer = v => { const o = {}; for (const k of ['tws', 'twa', 'stw', 'sog', 'xdr_heel', 'rudder']) if (v && v[k] != null && isFinite(v[k])) o[k] = Math.round(v[k] * 10) / 10; return o; };
+
   /* Service en ligne (Supabase, par son interface web) : fetch et stockage fournis, pour tourner aussi dans les tests. */
   class Service {
     constructor(cfg, o) {
@@ -129,6 +131,13 @@
     async appel(chemin, o) {
       o = o || {}; const h = Object.assign({ apikey: this.cle, Authorization: 'Bearer ' + await this.jeton() }, o.headers || {});
       return this.fetch(this.url + chemin, Object.assign({}, o, { headers: h }));
+    }
+    // suivi en direct d'un enregistrement : durée, milles, quelques mesures du B&G, jamais la position
+    async suivreMer(m) {
+      await this.jeton();
+      const uid = this.session.uid, r = await this.appel('/rest/v1/en_mer?on_conflict=id', { method: 'POST', headers: { 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ id: uid + '-' + m.rec, appareil: uid, appli: m.bord ? 'bord' : 'otacquet', bateau: m.bateau, etat: m.etat, debut: new Date(m.debut).toISOString(), maj_le: new Date().toISOString(), fin: m.fin ? new Date(m.fin).toISOString() : null, duree_s: m.duree_s, milles: m.milles, mesures: mesuresMer(m.mesures) }) });
+      if (!r.ok) throw new Error('suivi refusé (' + r.status + ')');
     }
     // identité validée dans la console ? Sinon le téléphone garde ce qui est fait, sans rien envoyer ; service plus ancien : pas d'attente
     async estMembre() {

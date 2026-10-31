@@ -201,7 +201,15 @@
     return giteCache.get(key);
   }
   // « gîte 3° · barre 0° » : en direct avec le B&G (rafale du moment comprise) ; sinon au vent moyen, et dans la rafale annoncée
+  function barreMesuree(c) {
+    if (c.src !== 'B&G') return '';
+    const b = c.v && c.v.rudder;
+    return b == null ? ' · barre mesurée : pas de donnée du B&G' : ' · barre mesurée ' + Math.round(Math.abs(b)) + '° ' + (b < 0 ? 'bâbord' : 'tribord');
+  }
   function giteTexte(r, cfg, moy, c) {
+    return giteModele(r, cfg, moy, c) + barreMesuree(c);
+  }
+  function giteModele(r, cfg, moy, c) {
     const R = rafale(c);
     if (R.direct) { const x = R.g > 0.02 ? giteRafale(r, cfg, R.g) : moy; return 'gîte ' + Math.round(x.phi) + '° · barre ' + Math.round(x.helm) + '° (en direct)'; }
     if (R.g > 0.02) { const x = giteRafale(r, cfg, R.g); return 'gîte ' + Math.round(moy.phi) + '° (rafale ' + Math.round(x.phi) + '°) · barre ' + Math.round(moy.helm) + '° (rafale ' + Math.round(x.helm) + '°)'; }

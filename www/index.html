@@ -516,7 +516,10 @@ const BORD = window.OT_MODE === 'bord';   // appli « O'Tacquet Bord » (outilla
 if (BORD) document.body.classList.add('bord');
 // mesures de l'écran Trace, dans l'ordre choisi (gardé sur le téléphone) ; edition : écran des mesures en cours de modification
 let MES = Mesures.DEFAUT.slice(), edition = false;
-try { MES = Mesures.charger(localStorage.getItem('mesures-trace')); } catch (e) {}
+try {
+  MES = Mesures.charger(localStorage.getItem('mesures-trace'));
+  if (!localStorage.getItem('mesures-barre')) { MES = Mesures.ajouter(MES, 'rudder'); localStorage.setItem('mesures-trace', Mesures.garder(MES)); localStorage.setItem('mesures-barre', '1'); }
+} catch (e) {}
 const Bord = NATIVE ? window.Capacitor.registerPlugin('Bord') : null;
 let nativeGps = false;
 function gpsOn() {
@@ -549,7 +552,8 @@ function onPos(p) {
   if (rec.state === 'run') { if (tr.add(fix) && line) line.addLatLng([fix.lat, fix.lon]); }
   show();
 }
-function show() { majMesures(); }
+const chrono = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 3600) + ':' + String(Math.floor(s / 60) % 60).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+function show() { majMesures(); if (rec.start && (rec.state === 'run' || rec.state === 'pause')) $('rec-txt').textContent = (rec.state === 'run' ? '' : 'Pause ') + chrono(Date.now() - rec.start); }
 function setState(st) {
   rec.state = st; if (BORD) $('bord-envoi').hidden = st !== 'idle' || $('bord-envoi').hidden;
   $('ctl-idle').hidden = st !== 'idle'; $('ctl-run').hidden = !(st === 'run' || st === 'pause'); $('ctl-end').hidden = st !== 'end';
@@ -559,23 +563,35 @@ function setState(st) {
 }
 /* Instruments du bord (appli iPhone) : B&G par le Wi-Fi, échantillon toutes les 5 s pendant l'enregistrement. */
 const bord = window.Nmea ? new window.Nmea.Bord() : null; let ins = [], insLast = 0, bgState = '';
-const INS_KEYS = ['stw', 'tws', 'twa', 'twd', 'aws', 'awa', 'heading', 'xdr_heel', 'xdr_trim', 'depth', 'sog', 'cog', 'waterTemp'];
+const INS_KEYS = ['stw', 'tws', 'twa', 'twd', 'aws', 'awa', 'heading', 'xdr_heel', 'xdr_trim', 'depth', 'sog', 'cog', 'waterTemp', 'rudder'];
 function sampleIns(now) {
   if (!bord || rec.state !== 'run' || now - insLast < 5000) return;
   const v = bord.now(5000, now); if (!Object.keys(v).length) return;
   insLast = now; const row = [now]; for (const k of INS_KEYS) row.push(v[k] != null ? Math.round(v[k] * 10) / 10 : null); ins.push(row);
 }
 function showIns() { majMesures(); }
+/* Suivi en direct (carnet de bord) : le départ, puis des nouvelles toutes les 30 s. Sans réseau, rien n'est perdu : le prochain envoi part dès son retour. */
+let merDernier = 0;
+function suiviMer(force, fin) {
+  const S = window.CarnetEcran && window.CarnetEcran.service(), now = Date.now();
+  if (!S || !rec.start || (!force && now - merDernier < 30000)) return;
+  merDernier = now;
+  try {
+    const s = tr ? tr.stats() : null;
+    S.suivreMer({ rec: rec.id, bord: BORD, bateau: window.BateauEcran ? window.BateauEcran.bateau() : null, etat: rec.state === 'run' ? 'run' : 'pause', debut: rec.start, fin, duree_s: Math.round((now - rec.start) / 1000), milles: s ? Math.round(s.distanceNM * 100) / 100 : 0, mesures: bord ? bord.now(5000) : {} }).catch(() => {});
+  } catch (e) {}
+}
 async function saveLive() { if (tr && rec.state !== 'idle') { try { await DB.live({ id: rec.id, start: rec.start, pts: tr.pts, gaps, ins }); } catch (e) {} } }
 async function start(resume) {
   initMap();
   if (!resume) { tr = new J.Trace(); rec = { id: Date.now(), start: Date.now(), state: 'run', bg0: bord ? [bord.n, bord.bad] : null }; gaps = []; ins = []; line && line.setLatLngs([]); }
   setState('run'); follow = true; gpsOn(); keepAwake();
-  clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); }, 1000);
+  clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); }, 1000);
+  suiviMer(true);
   clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000);
 }
 $('b-start').onclick = () => start(false);
-$('b-pause').onclick = () => { if (rec.state === 'run') { setState('pause'); saveLive(); } else { setState('run'); keepAwake(); } };
+$('b-pause').onclick = () => { if (rec.state === 'run') { setState('pause'); saveLive(); } else { setState('run'); keepAwake(); } suiviMer(true); };
 $('b-stop').onclick = () => { setState('end'); const d = new Date(rec.start); $('i-name').value = 'Sortie du ' + d.getDate() + ' ' + MOIS[d.getMonth()]; choisirVoilure(); saveLive(); };
 // voilure la plus utilisée : deux touches facultatives à la fin de la sortie (le B&G ne la connaît pas)
 let voilure = {};
@@ -588,12 +604,12 @@ for (const [id, cle] of [['i-ris', 'ris'], ['i-genois', 'genois']]) $(id).addEve
 });
 $('b-cancel').onclick = () => setState('run');
 $('b-save').onclick = async () => {
-  gpsOff(); clearInterval(tick); clearInterval(rec.saver);
+  gpsOff(); clearInterval(tick); clearInterval(rec.saver); suiviMer(true, Date.now());
   const s = tr.stats();
   const trip = { id: rec.id, name: ($('i-name').value || 'Sortie').trim(), start: s.points ? s.start : rec.start, end: s.points ? s.end : Date.now(),
     stats: { distanceNM: s.distanceNM, durationS: s.durationS, movingS: s.movingS, avgKn: s.avgKn, peakKn: s.peakKn, points: s.points, rejected: s.rejected, raw }, gaps,
     pts: tr.pts.map(p => [p.t, +p.lat.toFixed(6), +p.lon.toFixed(6), p.acc != null ? Math.round(p.acc) : null]),
-    insKeys: INS_KEYS, ins, voilure: Object.assign({}, voilure), bg: bord && rec.bg0 ? { lues: bord.n - rec.bg0[0], rejetees: bord.bad - rec.bg0[1] } : null };   // phrases du B&G pendant la sortie
+    insKeys: INS_KEYS, ins, voilure: Object.assign({}, voilure), bg: bord && rec.bg0 ? { lues: bord.n - rec.bg0[0], rejetees: bord.bad - rec.bg0[1], types: Object.assign({}, bord.types) } : null };   // phrases du B&G pendant la sortie
   await DB.put(trip); await DB.live(null);
   if (window.CarnetEcran) window.CarnetEcran.ajouterSortie(trip);   // relevés du B&G vers le carnet de bord (sans position)
   tr = null; rec = { state: 'idle' }; setState('idle'); line && line.setLatLngs([]); gpsOn(); show();
@@ -723,7 +739,7 @@ $('t-bat').onclick = () => { tab('bat'); window.BateauEcran.dessiner(); };
       tr = J.Trace.fromPoints([]); tr.pts = lv.pts; rec = { id: lv.id, start: lv.start, state: 'pause' }; gaps = lv.gaps || []; ins = lv.ins || [];
       if (line) line.setLatLngs(lv.pts.map(p => [p.lat, p.lon]));
       const w = $('lock-warn'); w.hidden = false; w.textContent = 'Enregistrement interrompu retrouvé (' + fr(tr.stats().distanceNM, 2) + ' M depuis ' + hm(lv.start) + ') : reprends-le ou termine-le.';
-      setState('pause'); clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); }, 1000); clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000); show();
+      setState('pause'); clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); }, 1000); clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000); show();
     }
   } catch (e) {}
 })();
