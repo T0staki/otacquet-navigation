@@ -165,6 +165,9 @@
   let dictee = false, avantDictee = '';
   const tacheNotes = () => d.taches.find(t => t.cle === C.CLE_NOTES + (qui().bateau || 'b31'));
   function ouvrirNote() { $('n-texte').value = LS.get('note-brouillon') || ''; $('n-etat').textContent = ''; ctx.tab('note'); dessinerNote(); }
+  // réponse attendue : note envoyée depuis moins de 5 minutes, sans avis ; l'écran des notes se relit alors toutes les 3 s
+  const attendReponse = n => !n.attente && !n.verif && Date.now() - new Date(n.fait_le).getTime() < 5 * 60e3;
+  const noteOuverte = () => $('v-note') && $('v-note').classList.contains('on');
   const envoisNotes = () => { try { return JSON.parse(LS.get('notes-envois') || '[]'); } catch (e) { return []; } };
   function dessinerNote() {
     const t = tacheNotes(), txt = $('n-texte').value.trim(), reste = C.notesRestantes(envoisNotes(), Date.now());
@@ -176,7 +179,7 @@
     $('n-liste').innerHTML = l.length ? l.map(n => {
       const v = n.verif;
       return '<div class="card c-note-item"><span class="sub">' + esc(n.auteur || '') + ' · ' + new Date(n.fait_le).toLocaleDateString('fr-FR') + ' ' + hm(n.fait_le) + '</span><p>' + esc(n.note) + '</p>' +
-        (n.attente ? '<p class="note">Gardée sur le téléphone, envoyée au retour du réseau.</p>' : !v ? '<p class="note">En attente de Claude.</p>' :
+        (n.attente ? '<p class="note">Gardée sur le téléphone, envoyée au retour du réseau.</p>' : !v ? (attendReponse(n) ? '<p class="note c-lit">Claude lit la note<span class="c-points" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>' : '<p class="note">En attente de Claude.</p>') :
           '<div class="c-verdict' + (v.verdict === 'valide' ? ' bon' : '') + '"><span>Claude · ' + hm(v.cree_le) + '</span><p>' + esc(v.message) + '</p></div>' +
           (!ctx.bord && v.pour_jeremie ? '<details><summary class="note">Analyse de Claude</summary><p class="note">' + esc(v.pour_jeremie) + '</p>' + (v.prochaines ? '<p class="note"><b>Prochaines étapes.</b> ' + esc(v.prochaines) + '</p>' : '') + '</details>' : '')) + '</div>';
     }).join('') : '<p class="note">Aucune note pour l’instant.</p>';
@@ -186,7 +189,7 @@
     if (dictee) arreterDictee();
     LS.set('notes-envois', JSON.stringify(envoisNotes().filter(x => x > now - 864e5).concat([now])));
     file.push(C.nouvelleAction({ tacheId: t.id, genre: 'note', bord: ctx.bord, nom: qui().nom, note: txt, v: ctx.bg(), photos: [] }));
-    garderFile(); $('n-texte').value = ''; LS.set('note-brouillon', ''); $('n-etat').textContent = 'Note envoyée' + (hors ? ' au retour du réseau.' : '.');
+    garderFile(); $('n-texte').value = ''; LS.set('note-brouillon', ''); $('n-etat').textContent = hors ? 'Note gardée, envoyée au retour du réseau.' : 'Note envoyée. Claude répond en général en moins d’une minute et demie.';
     dessinerNote(); synchro();
   }
   function arreterDictee() { dictee = false; if (ctx.dictee) ctx.dictee.dicterFin().catch(() => {}); dessinerNote(); }
@@ -234,6 +237,7 @@
     root.addEventListener('online', synchro);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') synchro(); });
     let tour = 0; setInterval(() => { tour++; if (o.visible() || tour % 4 === 0) synchro(); }, 30000);   // 30 s onglet ouvert, 2 min sinon
+    setInterval(() => { const t = tacheNotes(); if (noteOuverte() && document.visibilityState === 'visible' && t && (C.notes(d, file, t.id).some(attendReponse) || file.some(op => op.action && op.action.tache_id === t.id))) synchro(); }, 3000);
     // O'Tacquet : notifications (« Papa a fait… », avec l'avis de Claude) ; un toucher ouvre la tâche
     if (o.natif) {
       o.natif.addListener('jetonNotif', j => { if (j.jeton) S.enregistrerAppareil(j.jeton, j.environnement).catch(() => {}); });

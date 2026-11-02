@@ -229,6 +229,9 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
 .c-verdict{border:1.5px solid var(--accent);border-radius:14px;padding:10px 12px;background:var(--card)}
 .c-note-item{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}.c-note-item p{margin:0}.c-note-item details summary{cursor:pointer}
 .c-verdict.bon{border-color:#1F8A4C}
+.c-points i{font-style:normal;animation:c-point 1.2s infinite both}.c-points i:nth-child(2){animation-delay:.2s}.c-points i:nth-child(3){animation-delay:.4s}
+@keyframes c-point{0%,20%{opacity:0}40%,100%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.c-points i{animation:none}}
 .c-verdict span{font-size:13px;color:var(--ink2)}
 .c-verdict p{margin:4px 0 0;font-size:16px;line-height:1.4}
 .c-titre{margin:2px 0 0;font-family:var(--fc);font-weight:600;font-size:26px;line-height:1.1}
@@ -407,7 +410,7 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
     <textarea id="n-texte" rows="5" maxlength="2000" class="c-area" placeholder="Sur l'écran Réglages, le conseil change trop souvent quand le vent tourne"></textarea>
     <div class="c-bas" style="padding:0;position:static;border:0"><button class="btn" id="n-dicter" hidden>Dicter</button><button class="btn acc" id="n-ok" disabled>Envoyer</button></div>
     <p class="note" id="n-etat" role="status"></p>
-    <p class="card note" style="margin:0">Claude te répond en quelques minutes dès que le téléphone a du réseau, et pose ses questions si besoin. Le vent, la gîte et la vitesse du B&amp;G sont joints, sans la position.</p>
+    <p class="card note" style="margin:0">Claude te répond en général en moins d’une minute et demie dès que le téléphone a du réseau, et pose ses questions si besoin. Le vent, la gîte et la vitesse du B&amp;G sont joints, sans la position.</p>
     <span class="lbl">Notes envoyées</span>
     <div id="n-liste"></div>
   </div>
