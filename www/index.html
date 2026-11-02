@@ -178,6 +178,8 @@ a{color:var(--accent)}
 .seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:4px}
 .seg button{height:34px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--ink);font-family:inherit;font-weight:600;font-size:15px}
 .seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.seg.modes{grid-template-columns:repeat(2,minmax(0,1fr));margin:0 16px 8px}
+.seg.modes button{font-size:13px;height:32px}
 .rg.man .seg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
 .rhead{display:flex;justify-content:space-between;align-items:center;height:30px}
 .rhead button{height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);font-family:inherit;font-size:13px;font-weight:600}
@@ -308,6 +310,7 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
       <button class="ibtn" id="r-edit" data-act="edit" aria-pressed="false" aria-label="Corriger le vent"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"></path></svg></button>
     </div>
   </div>
+  <div class="seg modes" role="group" aria-label="Mode de navigation" data-leg="r-modes"><button data-act="mode-normal" id="r-mode-normal" aria-pressed="true">Navigation normale</button><button data-act="mode-perf" id="r-mode-perf" aria-pressed="false">Navigation performance</button></div>
   <div class="met" id="r-met" hidden data-leg="r-met"><span><small>TWS</small> <b id="r-mtws">–</b> nds</span><span><small id="r-mraflab">Rafales</small> <b id="r-mraf">–</b> nds</span><span><small>Mer</small> <b id="r-mmer">–</b> m</span></div>
   <div class="scroll">
     <div class="card" id="r-editbox" hidden style="border-color:var(--accent);display:flex;flex-direction:column;gap:6px">
@@ -346,6 +349,7 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
     </div>
     <div class="card" style="padding:6px 14px 4px">
       <div class="rhead"><span class="label">Réglages</span><button data-act="auto">Tout en auto</button></div>
+      <p class="note" id="r-tenu" hidden style="margin:2px 0 4px"></p>
       <div id="r-list"></div>
     </div>
     <button class="expbtn" id="r-exp" data-act="expert" aria-expanded="false" aria-controls="r-expert"><span><b>Mode expert</b><small>pataras, hale-bas, chariots de génois</small></span><span id="r-exparrow" style="font-size:18px;color:var(--ink2)">▾</span></button>
@@ -446,6 +450,7 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="trace.js"></script>
 <script src="nmea.js"></script>
+<script src="gofree.js"></script>
 <script src="mesures.js"></script>
 <script src="reglages.js"></script>
 <script src="moteur/mode.js"></script>
@@ -564,12 +569,16 @@ function setState(st) {
   $('rec-txt').textContent = st === 'run' ? 'Enregistrement' : st === 'pause' ? 'En pause' : st === 'end' ? 'Terminé' : 'À quai';
   $('b-pause').textContent = st === 'pause' ? 'Reprendre' : 'Pause';
 }
-/* Instruments du bord (appli iPhone) : B&G par le Wi-Fi, échantillon toutes les 5 s pendant l'enregistrement. */
-const bord = window.Nmea ? new window.Nmea.Bord() : null; let ins = [], insLast = 0, bgState = '';
-const INS_KEYS = ['stw', 'tws', 'twa', 'twd', 'aws', 'awa', 'heading', 'xdr_heel', 'xdr_trim', 'depth', 'sog', 'cog', 'waterTemp', 'rudder'];
+/* Instruments du bord (appli iPhone) : B&G par le Wi-Fi. NMEA 0183 (une valeur par seconde), complété par le port 2053 du Vulcan
+   (deux par seconde, www/gofree.js) pour l'affichage et les relevés : deux relevés par seconde avec le port 2053, sinon un.
+   L'écran Réglages ne lit que le NMEA 0183 (objet bord). */
+const bord = window.Nmea ? new window.Nmea.Bord() : null, vulcan = window.Gofree ? new window.Gofree.Vulcan() : null; let ins = [], insLast = 0, bgState = '';
+const INS_KEYS = ['stw', 'tws', 'twa', 'twd', 'aws', 'awa', 'heading', 'xdr_heel', 'xdr_trim', 'depth', 'sog', 'cog', 'waterTemp', 'rudder', 'turn_rate', 'pilot', 'pilot_wind'];
+const vulcanVivant = now => !!vulcan && Object.keys(vulcan.now(1500, now)).length > 0;
+function mesuresBord(now) { return Object.assign({}, bord ? bord.now(5000, now) : {}, vulcan ? vulcan.now(2000, now) : {}); }
 function sampleIns(now) {
-  if (!bord || rec.state !== 'run' || now - insLast < 5000) return;
-  const v = bord.now(5000, now); if (!Object.keys(v).length) return;
+  if (!bord || rec.state !== 'run' || now - insLast < (vulcanVivant(now) ? 450 : 950)) return;
+  const v = mesuresBord(now); if (!Object.keys(v).length) return;
   insLast = now; const row = [now]; for (const k of INS_KEYS) row.push(v[k] != null ? Math.round(v[k] * 10) / 10 : null); ins.push(row);
 }
 function showIns() { majMesures(); }
@@ -581,7 +590,7 @@ function suiviMer(force, fin) {
   merDernier = now;
   try {
     const s = tr ? tr.stats() : null;
-    S.suivreMer({ rec: rec.id, bord: BORD, bateau: window.BateauEcran ? window.BateauEcran.bateau() : null, etat: rec.state === 'run' ? 'run' : 'pause', debut: rec.start, fin, duree_s: Math.round((now - rec.start) / 1000), milles: s ? Math.round(s.distanceNM * 100) / 100 : 0, mesures: bord ? bord.now(5000) : {} }).catch(() => {});
+    S.suivreMer({ rec: rec.id, bord: BORD, bateau: window.BateauEcran ? window.BateauEcran.bateau() : null, etat: rec.state === 'run' ? 'run' : 'pause', debut: rec.start, fin, duree_s: Math.round((now - rec.start) / 1000), milles: s ? Math.round(s.distanceNM * 100) / 100 : 0, mesures: mesuresBord() }).catch(() => {});
   } catch (e) {}
 }
 /* Écran verrouillé (appli iPhone) : milles, vitesse réelle, vitesse théorique de la polaire gardée ; la durée avance seule. */
@@ -598,7 +607,7 @@ function suiviVerrou() {
   if (!NATIVE || !rec.start || now - verrouDernier < 5000) return;
   verrouDernier = now;
   try {
-    const s = tr ? tr.stats() : null, v = bord ? bord.now(5000) : {}, reelle = v.stw != null ? v.stw : last && last.sog != null ? last.sog : null, th = vitesseTheorique(v);
+    const s = tr ? tr.stats() : null, v = mesuresBord(), reelle = v.stw != null ? v.stw : last && last.sog != null ? last.sog : null, th = vitesseTheorique(v);
     const b = window.BateauEcran && window.OT_FLOTTE && window.OT_FLOTTE.fiches.bateaux[window.BateauEcran.bateau()];
     const o = { debut: rec.start, bateau: b ? b.nom : "O'Tacquet", milles: s ? s.distanceNM : 0, pause: rec.state !== 'run' };
     if (reelle != null) o.reelle = reelle; if (th != null) o.theorique = th;
@@ -610,7 +619,7 @@ async function start(resume) {
   initMap();
   if (!resume) { tr = new J.Trace(); rec = { id: Date.now(), start: Date.now(), state: 'run', bg0: bord ? [bord.n, bord.bad] : null }; gaps = []; ins = []; line && line.setLatLngs([]); }
   setState('run'); follow = true; gpsOn(); keepAwake();
-  clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); suiviVerrou(); }, 1000);
+  clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); suiviVerrou(); }, 500);
   suiviMer(true);
   clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000);
 }
@@ -764,7 +773,7 @@ $('t-bat').onclick = () => { tab('bat'); window.BateauEcran.dessiner(); };
       tr = J.Trace.fromPoints([]); tr.pts = lv.pts; rec = { id: lv.id, start: lv.start, state: 'pause' }; gaps = lv.gaps || []; ins = lv.ins || [];
       if (line) line.setLatLngs(lv.pts.map(p => [p.lat, p.lon]));
       const w = $('lock-warn'); w.hidden = false; w.textContent = 'Enregistrement interrompu retrouvé (' + fr(tr.stats().distanceNM, 2) + ' M depuis ' + hm(lv.start) + ') : reprends-le ou termine-le.';
-      setState('pause'); clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); suiviVerrou(); }, 1000); clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000); show();
+      setState('pause'); clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); suiviVerrou(); }, 500); clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000); show();
     }
   } catch (e) {}
 })();
@@ -775,6 +784,10 @@ if (NATIVE) {
   Bord.addListener('position', d => onPos({ timestamp: d.t, coords: { latitude: d.lat, longitude: d.lon, accuracy: d.acc, speed: d.sog != null ? d.sog / J.MS_TO_KN : null, heading: d.cog != null ? d.cog : null } }));
   Bord.addListener('etatgps', d => { if (d.etat === 'refuse') $('gps-state').textContent = 'GPS refusé : Réglages › O\'Tacquet › Position'; });
   Bord.addListener('nmea', d => { bord.feed(d.lignes); $('bg-dbg').textContent = bord.n + ' phrases lues · ' + bord.bad + ' rejetées · reçu : ' + Object.keys(bord.types).sort().join(' '); });
+  // port 2053 du Vulcan : lecture seule, messages filtrés ici (Gofree.Vulcan.permis) et dans le module natif
+  const vulcanEnvoi = o => { if (window.Gofree.Vulcan.permis(o)) Bord.vulcanEnvoi({ texte: JSON.stringify(o) }).catch(() => {}); };
+  Bord.addListener('vulcanEtat', d => { if (vulcan && d.etat === 'connecte') vulcan.demandes().forEach(vulcanEnvoi); });
+  Bord.addListener('vulcan', d => { if (vulcan) for (const m of d.messages || []) vulcan.recevoir(m).forEach(vulcanEnvoi); });
   Bord.addListener('etat', d => {
     bgState = d.etat; const ok = d.etat === 'connecte';
     $('bg-chip').classList.toggle('ok', ok); $('bg-dot').className = 'dot' + (ok ? '' : ' off');
@@ -787,7 +800,7 @@ if (NATIVE) {
   $('bg-on').onclick = bgConnect; $('bg-off').onclick = () => Bord.disconnect();
   $('bg-chip').onclick = () => { const p = $('bg-panel'); p.hidden = !p.hidden; $('bg-chip').setAttribute('aria-expanded', String(!p.hidden)); };
   bgConnect();
-  setInterval(showIns, 1000);
+  setInterval(showIns, 500);
   const sm = document.createElement('script'); sm.src = 'moteur/moteur.js';
   sm.onload = () => { if (window.Reglages && window.Reglages.start({ bord, last: () => last, visible: () => $('v-set').classList.contains('on') })) $('t-set').hidden = false; };
   document.head.appendChild(sm);
@@ -800,6 +813,7 @@ const LEGENDES = {
   'r-phi': ['Gîte et barre au mieux', "Gîte et angle de barre que prévoit le modèle avec tous les réglages au mieux (en auto), et la gîte mesurée par le B&G. Avec le B&G, en direct : une rafale fait gîter avant que le bateau accélère, en ≈ 6 s (à ajuster avec les enregistrements). Sans lui : au vent moyen et dans la rafale annoncée. Avec tes réglages forcés, elles sont dans le cadre « Avec tes réglages »."],
   'r-avec': ['Avec tes réglages', "Vitesse, gîte et barre que prévoit le modèle avec tout ce que tu as forcé à la main ; les réglages restés en auto suivent le conseil adapté à tes choix. L'écart avec la vitesse max théorique dit ce que tes réglages coûtent selon le modèle."],
   'r-expert': ['Mode expert', "Pour chaque réglage, la perte de vitesse si on le met au pire, les autres restant au mieux. Sous 0,05 nœud, il est indifférent. Le modèle conseille encore le pataras toujours relâché : écart connu, à corriger."],
+  'r-modes': ['Mode de navigation', "Les écoutes, les chariots, le pataras et le hale-bas conseillés restent affichés tant qu'ils donnent au moins 80 % de la vitesse maximale du modèle (navigation normale) ou 95 % (navigation performance). Quand il faut changer, un réglage qui ne rapporterait pas 0,05 nœud ne bouge pas. Le ris et le génois suivent leurs propres règles. Le choix est gardé sur ce téléphone."],
   'r-met': ['Conditions', "TWS : force du vent réel (B&G, sinon prévision Open-Meteo, corrigeable au crayon). Rafales : annoncées par Open-Meteo, ou la plus forte mesurée par le B&G sur les deux dernières minutes. Mer : hauteur des vagues prévue."],
   'r-lof': ['Risque de départ au lof', "Gîte et barre que prévoit le modèle dans les rafales annoncées par Open-Meteo, ou avec le B&G dans la plus forte rafale mesurée des deux dernières minutes, avec tes réglages du moment. Alerte dès 20° de gîte ou 14° de barre ; départ au lof probable au-delà de 25° de gîte (ta limite) ou de 20° de barre (le safran décroche)."],
   'r-next': ['Prochain changement', "Cherché en faisant forcir le vent nœud par nœud, à l'angle actuel. Le modèle conseille encore le ris trop tard : il ignore la barre et les rafales, alors que tu prends un ris vers 20 nœuds."],
@@ -814,7 +828,7 @@ function dessinerMesures() {
   majMesures();
 }
 function majMesures() {
-  const v = bord ? bord.now(5000) : {}, d = { stats: tr ? tr.stats() : null, sog: last && last.sog != null ? last.sog : null, cog: last && last.cog != null ? last.cog : null, start: rec.start, now: Date.now(), v };
+  const v = mesuresBord(), d = { stats: tr ? tr.stats() : null, sog: last && last.sog != null ? last.sog : null, cog: last && last.cog != null ? last.cog : null, start: rec.start, now: Date.now(), v };
   const bg = Object.keys(v).length > 0;
   for (const k of MES) {
     const b = $('m-' + k); if (!b) continue;
@@ -900,7 +914,7 @@ bordEnvoi();
   document.addEventListener('contextmenu', e => { if (e.target.closest('[data-leg], .cell')) e.preventDefault(); });
 })();
 /* ---------- Carnet de bord : seulement dans l'appli (adresse du service écrite à la compilation, jamais sur le site public) ---------- */
-if (window.CarnetEcran && window.CarnetEcran.start({ config: window.OT_CARNET, secret: NATIVE ? { lire: () => Bord.secretLire({ cle: 'carnet-session' }).then(r => r.valeur), ecrire: valeur => Bord.secretEcrire({ cle: 'carnet-session', valeur }) } : null, bord: BORD, natif: NATIVE && !BORD ? Bord : null, surEnvoi: () => bordEnvoi(), bg: () => bord ? bord.now(5000) : {}, tab, visible: () => $('v-car').classList.contains('on') })) { $('t-car').hidden = false; bordEnvoi();
+if (window.CarnetEcran && window.CarnetEcran.start({ config: window.OT_CARNET, secret: NATIVE ? { lire: () => Bord.secretLire({ cle: 'carnet-session' }).then(r => r.valeur), ecrire: valeur => Bord.secretEcrire({ cle: 'carnet-session', valeur }) } : null, bord: BORD, natif: NATIVE && !BORD ? Bord : null, surEnvoi: () => bordEnvoi(), bg: () => mesuresBord(), tab, visible: () => $('v-car').classList.contains('on') })) { $('t-car').hidden = false; bordEnvoi();
   if (window.BateauEcran.start({ service: window.CarnetEcran.service(), pret: window.CarnetEcran.pret(), config: window.OT_CARNET, bord: BORD, tab })) $('t-bat').hidden = false; }
 window.__app = { DB, onPos: p => onPos(p), state: () => rec.state, stats: () => tr && tr.stats() };
 </script>

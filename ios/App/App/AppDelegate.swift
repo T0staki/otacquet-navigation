@@ -116,7 +116,8 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
         CAPPluginMethod(name: "secretLire", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "secretEcrire", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "activiteMaj", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "activiteFin", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "activiteFin", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "vulcanEnvoi", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
@@ -192,6 +193,7 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
             self.port = UInt16(clamping: p)
             self.wanted = true
             self.open()
+            self.ouvrirVulcan()
         }
         call.resolve()
     }
@@ -202,9 +204,92 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
             self.conn?.cancel()
             self.conn = nil
             self.buffer.removeAll()
+            self.ws?.cancel()
+            self.ws = nil
             self.notifyListeners("etat", data: ["etat": "arrete"])
+            self.notifyListeners("vulcanEtat", data: ["etat": "arrete"])
         }
         call.resolve()
+    }
+
+    // --- Port 2053 du Vulcan (websocket, protocole non officiel) : deux valeurs par seconde pour l'affichage et les relevés.
+    // Lecture seule : seuls DataInfoReq, DataReq et UnsubscribeData peuvent partir (voir www/gofree.js) ; tout autre message est refusé ici.
+    private var ws: NWConnection?
+    private var vulcanRecu: [String] = [], vulcanPrevu = false
+    private let vulcanPermis: Set<String> = ["DataInfoReq", "DataReq", "UnsubscribeData"]
+
+    private func ouvrirVulcan() {
+        ws?.cancel()
+        guard let url = URL(string: "ws://\(host):2053/") else { return }
+        let o = NWProtocolWebSocket.Options()
+        o.autoReplyPing = true
+        let p = NWParameters.tcp
+        p.defaultProtocolStack.applicationProtocols.insert(o, at: 0)
+        let c = NWConnection(to: .url(url), using: p)
+        c.stateUpdateHandler = { [weak self] st in
+            guard let self = self else { return }
+            switch st {
+            case .ready:
+                self.notifyListeners("vulcanEtat", data: ["etat": "connecte"])
+                self.recevoirVulcan(c)
+            case .failed(let e):
+                self.notifyListeners("vulcanEtat", data: ["etat": "erreur", "erreur": "\(e)"])
+                self.relancerVulcan(c)
+            default:
+                break
+            }
+        }
+        ws = c
+        c.start(queue: queue)
+    }
+
+    private func relancerVulcan(_ c: NWConnection) {
+        c.cancel()
+        guard wanted else { return }
+        queue.asyncAfter(deadline: .now() + 5) { [weak self] in
+            guard let self = self, self.wanted, self.ws === c else { return }
+            self.ouvrirVulcan()
+        }
+    }
+
+    private func recevoirVulcan(_ c: NWConnection) {
+        c.receiveMessage { [weak self] data, ctx, _, err in
+            guard let self = self else { return }
+            if err != nil {
+                self.notifyListeners("vulcanEtat", data: ["etat": "coupe"])
+                self.relancerVulcan(c)
+                return
+            }
+            if let d = data, let m = ctx?.protocolMetadata(definition: NWProtocolWebSocket.definition) as? NWProtocolWebSocket.Metadata,
+               m.opcode == .text, let t = String(data: d, encoding: .utf8) {
+                self.vulcanRecu.append(t)
+                if self.vulcanRecu.count > 400 { self.vulcanRecu.removeFirst(self.vulcanRecu.count - 400) }
+                if !self.vulcanPrevu {   // regroupés deux fois par seconde, pour la batterie
+                    self.vulcanPrevu = true
+                    self.queue.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                        guard let self = self else { return }
+                        self.vulcanPrevu = false
+                        let l = self.vulcanRecu; self.vulcanRecu.removeAll()
+                        if !l.isEmpty { self.notifyListeners("vulcan", data: ["messages": l]) }
+                    }
+                }
+            }
+            self.recevoirVulcan(c)
+        }
+    }
+
+    @objc func vulcanEnvoi(_ call: CAPPluginCall) {
+        let t = call.getString("texte") ?? ""
+        guard let d = t.data(using: .utf8), let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+              o.count == 1, let k = o.keys.first, vulcanPermis.contains(k) else { call.reject("message refusé : lecture seule"); return }
+        queue.async {
+            guard let c = self.ws else { call.reject("Vulcan non connecté"); return }
+            let m = NWProtocolWebSocket.Metadata(opcode: .text)
+            let ctx = NWConnection.ContentContext(identifier: "envoi", metadata: [m])
+            c.send(content: d, contentContext: ctx, isComplete: true, completion: .contentProcessed { e in
+                if let e = e { call.reject("\(e)") } else { call.resolve() }
+            })
+        }
     }
 
     private func open() {

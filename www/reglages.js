@@ -19,6 +19,11 @@
   // man : réglages repris à la main ; val : leur valeur en unités de curseur (écoutes 0-100, génois 0-80 % roulé, chariot −100-100, ris 0-2) ;
   // pose : valeur prise en compte par le moteur pour le ris, le génois, le pataras et les chariots de génois (au relâcher du curseur)
   const S = { hdgSet: null, man: {}, val: {}, pose: {}, expert: false, edit: false, meteo: null, meteoErr: '', corr: null };
+  // Modes (Jérémie, 02/11/2026) : les réglages affichés restent tant qu'ils donnent au moins 80 % (normal) ou 95 % (performance) de la vitesse max du modèle.
+  // Quand il faut changer, un réglage qui ne rapporterait pas 0,05 nd reste où il est (départage entre réglages presque équivalents). Ris et génois : règles inchangées.
+  const MODES = { normal: 0.8, perf: 0.95 }, DEPARTAGE = 0.05, TENUS = ['mainSet', 'jibSet', 'trav', 'vang', 'bs', 'car'];
+  try { S.mode = MODES[localStorage.getItem('mode-reglages')] ? localStorage.getItem('mode-reglages') : 'normal'; } catch (e) { S.mode = 'normal'; }
+  let tenu = null;   // réglages affichés : { cle de case, c (config du moteur), part (vitesse gardée / max) }
   const touche = {};
   const cache = new Map();
 
@@ -109,7 +114,8 @@
   const jm = () => PHY.Y.jibMin;
   const VERS = {   // valeur du moteur → curseur
     main: c => (c.mainSet - 2) / 0.83, jib: c => (c.jibSet - jm()) / (38 - jm()) * 100, furl: c => c.furl * 100,
-    trav: c => c.trav, reef: c => c.reef, bs: c => c.bs, car: c => c.car, vang: c => c.vang
+    // au près (vers TWA 40-55°), l'optimum peut ne pas donner de chariot ni de hale-bas : le moteur calcule alors avec ses valeurs par défaut, chariot au milieu et hale-bas à mi-tension
+    trav: c => c.trav == null ? 0 : c.trav, reef: c => c.reef, bs: c => c.bs, car: c => c.car, vang: c => c.vang == null ? 50 : c.vang
   };
   const TXT = {
     main: v => 'bôme à ' + Math.round(2 + v * 0.83) + '° de l’axe',
@@ -237,6 +243,29 @@
     if (S.man.vang) c.vang = S.val.vang;
     return c;
   }
+  // réglages affichés selon le mode : on garde les précédents tant qu'ils tiennent le seuil ; sinon le nouvel optimum, avec départage réglage par réglage
+  const garderCache = new Map();
+  function vitesseAvec(r, c) {
+    const key = [r.tws, r.A].concat(['reef', 'furl'].concat(TENUS).map(k => c[k] == null ? '' : Math.round(c[k] * 10))).join('|');
+    if (!garderCache.has(key)) { garderCache.set(key, PHY.steady(r.tws * KN, r.A, c, r, false).V / KN); if (garderCache.size > 300) garderCache.delete(garderCache.keys().next().value); }
+    return garderCache.get(key);
+  }
+  function garder(r) {
+    if (!r) return null;
+    const libres = TENUS.filter(k => !((k === 'bs' || k === 'car') && S.man[k]));   // pataras et chariots de génois forcés : déjà dans le calcul
+    if (!tenu) { tenu = { c: Object.assign({}, r.c), part: 1 }; return r; }
+    const c = Object.assign({}, r.c);
+    for (const k of libres) if (tenu.c[k] != null) c[k] = tenu.c[k];
+    const V = vitesseAvec(r, c);
+    if (V >= MODES[S.mode] * r.V) { tenu.part = V / r.V; return Object.assign({}, r, { c }); }
+    const n = Object.assign({}, r.c);
+    for (const k of libres) {
+      if (tenu.c[k] == null || n[k] == null || tenu.c[k] === n[k]) continue;
+      if (r.V - vitesseAvec(r, Object.assign({}, n, { [k]: tenu.c[k] })) < DEPARTAGE) n[k] = tenu.c[k];
+    }
+    tenu = { c: Object.assign({}, n), part: vitesseAvec(r, n) / r.V };
+    return Object.assign({}, r, { c: n });
+  }
   function avecTesReglages(r) {
     if (!r || !Object.keys(S.man).some(k => S.man[k])) return null;
     if (!['main', 'jib', 'trav', 'vang'].some(k => S.man[k])) return { V: r.V, phi: r.phi, helm: r.helm };
@@ -290,7 +319,11 @@
     const gm = c.v.xdr_heel, mes = gm != null ? ' · gîte mesurée ' + Math.round(Math.abs(gm)) + '°' : '';
     $('r-phi').textContent = r0 && !tooClose ? 'Au mieux : ' + giteTexte(r0, r0.c, r0, c) + mes : (gm != null ? 'Gîte mesurée ' + Math.round(Math.abs(gm)) + '°' : '');
     // réglages
-    const rr = r && !tooClose ? r : null;
+    const rr = r && !tooClose ? garder(r) : null;
+    S.aff = rr;
+    $('r-mode-normal').setAttribute('aria-pressed', String(S.mode === 'normal')); $('r-mode-perf').setAttribute('aria-pressed', String(S.mode === 'perf'));
+    $('r-tenu').hidden = !rr || !tenu;
+    if (rr && tenu) $('r-tenu').textContent = 'Réglages gardés : ' + Math.round(tenu.part * 100) + ' % du max (' + (S.mode === 'perf' ? 'performance, seuil 95 %' : 'normale, seuil 80 %') + ')';
     const av = avecTesReglages(rr), avR = av || (rr ? { V: rr.V } : null);
     LIGNES.forEach(L => reglerLigne(L, rr, false, r0, avR)); EXPERT.forEach(L => reglerLigne(L, rr, true, r0, avR));
     $('r-list-note').hidden = !!rr;
@@ -320,9 +353,10 @@
     if (a.startsWith('man-')) {   // la pastille : manuel → auto ; auto → manuel sur la valeur conseillée
       const k = a.slice(4);
       if (S.man[k]) delete S.man[k];
-      else if (dernier) prendre(k, VERS[k](dernier.c));   // valeur conseillée, adaptée aux autres réglages forcés
+      else if (S.aff || dernier) prendre(k, VERS[k]((S.aff || dernier).c));   // valeur affichée, adaptée aux autres réglages forcés
     } else if (/^\w+=-?\d+$/.test(a)) { const [k, v] = a.split('='); prendre(k, +v); }   // ris 0-1-2, repères du génois et du chariot
     else if (a === 'auto') { S.man = {}; }
+    else if (a === 'mode-normal' || a === 'mode-perf') { S.mode = a === 'mode-perf' ? 'perf' : 'normal'; try { localStorage.setItem('mode-reglages', S.mode); } catch (e) {} }
     else if (/^hdg[-+]\d+$/.test(a)) { const d = parseInt(a.slice(3), 10); S.hdgSet = ((Math.round(S.hdgSet != null ? S.hdgSet : c.hdg != null ? c.hdg : 0) + d) % 360 + 360) % 360; }
     else if (a === 'hdgback') S.hdgSet = null;
     else if (a === 'plein') { ouvrirPlein(); return; }
