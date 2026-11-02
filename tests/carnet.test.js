@@ -109,5 +109,14 @@ ok(C.filtres(dr).join('|') === 'Tout|À quai, avant de partir|Au près|Mouillage
   const S2 = new C.Service({ url: 'https://x.supabase.co/', cle: 'cle' }, { store: { get: k => mem2[k], set: (k, v) => { mem2[k] = v; } }, fetch: async u => { appels2.push(u); return rep(503, {}); } });
   let panne = null; try { await S2.jeton(); } catch (e) { panne = e; }
   ok(panne && appels2.length === 1 && JSON.parse(mem2['carnet-session']).uid === 'u1', 'service en panne : pas de nouvelle identité');
+  // notes de bord (02/11/2026) : jamais dans la liste ni dans le compte ; notes du bateau avec la réponse de Claude, celles du téléphone en tête
+  const dn = { taches: [{ id: 'tn', cle: 'notes-bord/b31', titre: 'Notes de bord', groupe: 'Notes de bord', statut: 'a_faire', ordre: 0, cree_le: '1' }, { id: 'tx', titre: 'Autre', groupe: 'Au près', statut: 'a_faire', ordre: 30, cree_le: '1' }],
+    actions: [{ id: 'n1', tache_id: 'tn', genre: 'note', auteur: 'Papa (Bord)', note: 'Le conseil saute', fait_le: '2026-11-02T10:00:00Z' }, { id: 'n2', tache_id: 'tn', genre: 'note', auteur: 'Papa (Bord)', note: 'Et la barre', fait_le: '2026-11-02T11:00:00Z' }],
+    verifications: [{ id: 'v1', action_id: 'n1', verdict: 'a_completer', message: 'Sur quel écran ?', cree_le: '2026-11-02T10:02:00Z' }] };
+  const fn = [C.nouvelleAction({ tacheId: 'tn', genre: 'note', bord: true, nom: 'Papa', note: 'Sans réseau', now: Date.parse('2026-11-02T12:00:00Z') })];
+  ok(C.estNotes(dn.taches[0]) && !C.estNotes(dn.taches[1]), 'tâche des notes reconnue par sa clé');
+  ok(C.resteAFaire(dn, []) === 1 && !C.grouper(dn, [], 'Tout').some(g => g.items.some(i => i.t.id === 'tn')) && !C.filtres(dn).includes('Notes de bord'), 'notes hors de la liste, du compte et des filtres');
+  const ln = C.notes(dn, fn, 'tn');
+  ok(ln.length === 3 && ln[0].attente && ln[0].note === 'Sans réseau' && ln[1].note === 'Et la barre' && !ln[1].verif && ln[2].verif.message === 'Sur quel écran ?', 'notes : la plus récente en tête, réponse de Claude jointe');
   console.log(fail ? fail + ' échec(s)' : 'tous les tests passent'); process.exit(fail ? 1 : 0);
 })();

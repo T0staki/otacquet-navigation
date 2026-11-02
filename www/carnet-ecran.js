@@ -50,7 +50,7 @@
       const b = qui().bateau; if (b) d.taches = d.taches.filter(t => !t.bateau || t.bateau === b);   // les tâches du bateau du profil
       LS.set('carnet-cache', JSON.stringify(d)); hors = false;
     } catch (e) { hors = true; }
-    finally { occupe = false; dessiner(); }
+    finally { occupe = false; dessiner(); if ($('v-note') && $('v-note').classList.contains('on')) dessinerNote(); }
   }
 
   /* ---------- Liste ---------- */
@@ -157,6 +157,38 @@
     garderFile(); ctx.tab('car'); dessiner(); synchro();
   }
 
+  /* ---------- Note de bord : écrite ou dictée (transcrite sur le téléphone, seul le texte part), réponse de Claude dessous ---------- */
+  let dictee = false, avantDictee = '';
+  const tacheNotes = () => d.taches.find(t => t.cle === C.CLE_NOTES + (qui().bateau || 'b31'));
+  function ouvrirNote() { $('n-texte').value = LS.get('note-brouillon') || ''; $('n-etat').textContent = ''; ctx.tab('note'); dessinerNote(); }
+  function dessinerNote() {
+    const t = tacheNotes(), txt = $('n-texte').value.trim();
+    $('n-ok').disabled = !txt || !t || dictee;
+    $('n-dicter').hidden = !ctx.dictee; $('n-dicter').textContent = dictee ? 'Arrêter la dictée' : 'Dicter';
+    if (!t) $('n-etat').textContent = 'Il faut du réseau une première fois pour ouvrir les notes de bord. La note reste ici en attendant.';
+    const l = t ? C.notes(d, file, t.id) : [];
+    $('n-liste').innerHTML = l.length ? l.map(n => {
+      const v = n.verif;
+      return '<div class="card c-note-item"><span class="sub">' + esc(n.auteur || '') + ' · ' + new Date(n.fait_le).toLocaleDateString('fr-FR') + ' ' + hm(n.fait_le) + '</span><p>' + esc(n.note) + '</p>' +
+        (n.attente ? '<p class="note">Gardée sur le téléphone, envoyée au retour du réseau.</p>' : !v ? '<p class="note">En attente de Claude.</p>' :
+          '<div class="c-verdict' + (v.verdict === 'valide' ? ' bon' : '') + '"><span>Claude · ' + hm(v.cree_le) + '</span><p>' + esc(v.message) + '</p></div>' +
+          (!ctx.bord && v.pour_jeremie ? '<details><summary class="note">Analyse de Claude</summary><p class="note">' + esc(v.pour_jeremie) + '</p>' + (v.prochaines ? '<p class="note"><b>Prochaines étapes.</b> ' + esc(v.prochaines) + '</p>' : '') + '</details>' : '')) + '</div>';
+    }).join('') : '<p class="note">Aucune note pour l’instant.</p>';
+  }
+  function envoyerNote() {
+    const t = tacheNotes(), txt = $('n-texte').value.trim(); if (!t || !txt) return;
+    if (dictee) arreterDictee();
+    file.push(C.nouvelleAction({ tacheId: t.id, genre: 'note', bord: ctx.bord, nom: qui().nom, note: txt, v: ctx.bg(), photos: [] }));
+    garderFile(); $('n-texte').value = ''; LS.set('note-brouillon', ''); $('n-etat').textContent = 'Note envoyée' + (hors ? ' au retour du réseau.' : '.');
+    dessinerNote(); synchro();
+  }
+  function arreterDictee() { dictee = false; if (ctx.dictee) ctx.dictee.dicterFin().catch(() => {}); dessinerNote(); }
+  function dicter() {
+    if (dictee) { arreterDictee(); return; }
+    avantDictee = $('n-texte').value.replace(/\s+$/, ''); dictee = true; $('n-etat').textContent = 'Parle, puis touche « Arrêter la dictée ».'; dessinerNote();
+    ctx.dictee.dicterDebut().catch(e => { dictee = false; $('n-etat').textContent = 'Dictée impossible : ' + (e.message || e); dessinerNote(); });
+  }
+
   /* ---------- Démarrage ---------- */
   function start(o) {
     if (!o.config || !o.config.url || !o.config.cle) return false;
@@ -182,6 +214,15 @@
     $('a-photo').onclick = () => prendre(pid => { ajoutPhotos.push(pid); dessinerAjout(); });
     $('a-photos').addEventListener('click', e => { const x = e.target.closest('[data-aretire]'); if (!x) return; ajoutPhotos = ajoutPhotos.filter(p => p !== x.dataset.aretire); PDB.del(x.dataset.aretire).catch(() => {}); dessinerAjout(); });
     $('a-ok').onclick = ajouter;
+    $('c-notebtn').onclick = ouvrirNote; $('n-annuler').onclick = () => { if (dictee) arreterDictee(); ctx.tab('car'); dessiner(); };
+    $('n-texte').oninput = () => { LS.set('note-brouillon', $('n-texte').value); dessinerNote(); };
+    $('n-ok').onclick = envoyerNote; $('n-dicter').onclick = dicter;
+    if (o.dictee) o.dictee.addListener('dictee', x => {
+      if (!dictee) return;
+      $('n-texte').value = (avantDictee ? avantDictee + ' ' : '') + (x.texte || ''); LS.set('note-brouillon', $('n-texte').value);
+      if (x.fin) { dictee = false; $('n-etat').textContent = x.erreur ? 'Dictée arrêtée : ' + x.erreur : 'Relis, corrige si besoin, puis envoie.'; }
+      dessinerNote();
+    });
     $('c-file').onchange = photoChoisie;
     root.addEventListener('online', synchro);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') synchro(); });
@@ -204,5 +245,5 @@
   }
   // où en est l'envoi d'une sortie du journal : « attente » (gardée sur le téléphone), « envoyee », ou null (pas de relevés du B&G)
   const etatSortie = id => file.some(op => op.tripId === id) ? 'attente' : envoyees.includes(id) ? 'envoyee' : null;
-  root.CarnetEcran = { service: () => S, pret: () => pret, start, dessiner, synchro, ajouterSortie, etatSortie, etat: () => ({ d, file, hors, brouillons }) };
+  root.CarnetEcran = { service: () => S, pret: () => pret, start, ouvrirNote, dessiner, synchro, ajouterSortie, etatSortie, etat: () => ({ d, file, hors, brouillons }) };
 })(typeof self !== 'undefined' ? self : this);

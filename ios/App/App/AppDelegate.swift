@@ -66,6 +66,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 import Network
 import CoreLocation
 import UserNotifications
+import Speech
+import AVFoundation
 
 // Notifications du carnet de bord (V0.8, 29/10/2026) : affichées même appli ouverte ; un toucher ouvre la tâche
 // (événement « notifTouchee » gardé jusqu'à ce que la page l'écoute, appli lancée par le toucher comprise).
@@ -117,7 +119,9 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
         CAPPluginMethod(name: "secretEcrire", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "activiteMaj", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "activiteFin", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "vulcanEnvoi", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "vulcanEnvoi", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "dicterDebut", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "dicterFin", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
@@ -366,6 +370,55 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
             let l = self.enAttente; self.enAttente.removeAll()
             if !l.isEmpty { self.notifyListeners("nmea", data: ["lignes": l.joined(separator: "\n")]) }
         }
+    }
+
+    // --- Dictée des notes de bord (02/11/2026) : reconnaissance vocale en français, sur le téléphone quand il le permet ; seul le texte
+    // repart vers la page (événement « dictee » : texte, fin, erreur). Rien n'est enregistré ni envoyé ailleurs.
+    private let dicteur = SFSpeechRecognizer(locale: Locale(identifier: "fr-FR"))
+    private var dicteeMoteur: AVAudioEngine?
+    private var dicteeDemande: SFSpeechAudioBufferRecognitionRequest?
+    private var dicteeTache: SFSpeechRecognitionTask?
+
+    @objc func dicterDebut(_ call: CAPPluginCall) {
+        SFSpeechRecognizer.requestAuthorization { st in
+            guard st == .authorized else { call.reject("reconnaissance vocale refusée : Réglages › O'Tacquet ou Bord › Reconnaissance vocale"); return }
+            AVAudioSession.sharedInstance().requestRecordPermission { ok in
+                guard ok else { call.reject("micro refusé : Réglages › O'Tacquet ou Bord › Micro"); return }
+                DispatchQueue.main.async {
+                    do { try self.lancerDictee(); call.resolve() } catch { self.finirDictee(); call.reject("\(error.localizedDescription)") }
+                }
+            }
+        }
+    }
+    @objc func dicterFin(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { self.dicteeDemande?.endAudio(); self.finirDictee(); call.resolve() }
+    }
+    private func lancerDictee() throws {
+        finirDictee()
+        guard let r = dicteur, r.isAvailable else { throw NSError(domain: "dictee", code: 1, userInfo: [NSLocalizedDescriptionKey: "reconnaissance vocale indisponible"]) }
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.record, mode: .measurement, options: .duckOthers)
+        try session.setActive(true, options: .notifyOthersOnDeactivation)
+        let demande = SFSpeechAudioBufferRecognitionRequest()
+        demande.shouldReportPartialResults = true
+        if r.supportsOnDeviceRecognition { demande.requiresOnDeviceRecognition = true }   // sur le téléphone : marche sans réseau, rien ne part chez Apple
+        let moteur = AVAudioEngine(), entree = moteur.inputNode
+        entree.installTap(onBus: 0, bufferSize: 1024, format: entree.outputFormat(forBus: 0)) { b, _ in demande.append(b) }
+        moteur.prepare(); try moteur.start()
+        dicteeMoteur = moteur; dicteeDemande = demande
+        dicteeTache = r.recognitionTask(with: demande) { [weak self] res, err in
+            guard let self = self else { return }
+            let fin = (res?.isFinal ?? false) || err != nil
+            var d: [String: Any] = ["texte": res?.bestTranscription.formattedString ?? "", "fin": fin]
+            if let e = err, res == nil { d["erreur"] = e.localizedDescription }
+            self.notifyListeners("dictee", data: d)
+            if fin { DispatchQueue.main.async { self.finirDictee() } }
+        }
+    }
+    private func finirDictee() {
+        dicteeMoteur?.stop(); dicteeMoteur?.inputNode.removeTap(onBus: 0); dicteeMoteur = nil
+        dicteeTache?.cancel(); dicteeTache = nil; dicteeDemande = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     // --- GPS de l'iPhone, écran verrouillé compris

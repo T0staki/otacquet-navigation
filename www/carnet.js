@@ -75,13 +75,24 @@
   // difficulté et intérêt évalués par Claude, en clair : « Facile · 10 minutes · Intérêt fort »
   const DIFF = { 1: 'Facile', 2: 'Moyenne', 3: 'Difficile' }, INTERET = { 1: 'Intérêt faible', 2: 'Intérêt moyen', 3: 'Intérêt fort' };
   const effort = t => [DIFF[t.difficulte], t.duree, INTERET[t.interet]].filter(Boolean).join(' · ');
-  const resteAFaire = (d, file) => d.taches.filter(t => !etat(t, d, file).fini).length;
+  // notes de bord (02/11/2026) : une tâche permanente par bateau, « notes-bord/<bateau> », jamais dans la liste ni dans le compte : on y accède par le bouton Note
+  const CLE_NOTES = 'notes-bord/', estNotes = t => String(t.cle || '').startsWith(CLE_NOTES);
+  // les notes du bateau, plus récentes d'abord, avec la réponse de Claude ; celles encore sur le téléphone en tête
+  function notes(d, file, tacheId) {
+    const enFile = (file || []).filter(op => op.action && op.action.tache_id === tacheId).map(op => ({ id: op.action.id, auteur: op.action.auteur, note: op.action.note, fait_le: op.action.fait_le, attente: true }));
+    const envoyees = d.actions.filter(a => a.tache_id === tacheId && a.note && !enFile.some(x => x.id === a.id)).map(a => {
+      const v = d.verifications.filter(x => x.action_id === a.id).sort((x, y) => x.cree_le < y.cree_le ? -1 : 1).pop();
+      return { id: a.id, auteur: a.auteur, note: a.note, fait_le: a.fait_le, verif: v || null };
+    });
+    return enFile.concat(envoyees).sort((x, y) => x.fait_le < y.fait_le ? 1 : -1).slice(0, 30);
+  }
+  const resteAFaire = (d, file) => d.taches.filter(t => !estNotes(t) && !etat(t, d, file).fini).length;
 
   // groupes dans l'ordre du bord (à quai, au près…), tâches finies en bas de leur groupe ; les tâches en réserve (retirées
   // après tri, lues par O'Tacquet seulement) à part, en dernier
   const RESERVE = 'En réserve', enReserve = t => t.statut === 'reserve';
   function grouper(d, file, filtre) {
-    const out = [], actives = d.taches.filter(t => !enReserve(t)), noms = GROUPES.concat([...new Set(actives.map(t => t.groupe))].filter(g => !GROUPES.includes(g)));
+    const out = [], actives = d.taches.filter(t => !enReserve(t) && !estNotes(t)), noms = GROUPES.concat([...new Set(actives.map(t => t.groupe))].filter(g => !GROUPES.includes(g)));
     for (const nom of noms) {
       if (filtre && filtre !== 'Tout' && filtre !== nom) continue;
       const items = actives.filter(t => t.groupe === nom).map(t => ({ t, e: etat(t, d, file) }))
@@ -92,7 +103,7 @@
     if (res.length && (!filtre || filtre === 'Tout' || filtre === RESERVE)) out.push({ nom: RESERVE, items: res, reserve: true });
     return out;
   }
-  const filtres = d => { const a = d.taches.filter(t => !enReserve(t));
+  const filtres = d => { const a = d.taches.filter(t => !enReserve(t) && !estNotes(t));
     return ['Tout'].concat(GROUPES.filter(g => a.some(t => t.groupe === g)), [...new Set(a.map(t => t.groupe))].filter(g => !GROUPES.includes(g)), d.taches.some(enReserve) ? [RESERVE] : []); };
 
   const mesuresMer = v => { const o = {}; for (const k of ['tws', 'twa', 'stw', 'sog', 'xdr_heel', 'rudder']) if (v && v[k] != null && isFinite(v[k])) o[k] = Math.round(v[k] * 10) / 10; return o; };
@@ -208,6 +219,6 @@
     return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('photo illisible')), 'image/jpeg', 0.85));
   }
 
-  const api = { CLE_SORTIE, GROUPES, RESERVE, GENRES, MESURES, DIFF, INTERET, effort, auteur, uuid, mesuresBG, lireFile, nouvelleAction, nouvelAjout, nouvelleSortie, etat, resteAFaire, grouper, filtres, Service, reduire };
+  const api = { CLE_NOTES, estNotes, notes, CLE_SORTIE, GROUPES, RESERVE, GENRES, MESURES, DIFF, INTERET, effort, auteur, uuid, mesuresBG, lireFile, nouvelleAction, nouvelAjout, nouvelleSortie, etat, resteAFaire, grouper, filtres, Service, reduire };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Carnet = api;
 })(typeof self !== 'undefined' ? self : this);

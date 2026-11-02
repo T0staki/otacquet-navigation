@@ -227,6 +227,7 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
 .c-ok{flex-shrink:0;color:#1F8A4C}
 .c-att{flex-shrink:0;color:var(--ink2)}
 .c-verdict{border:1.5px solid var(--accent);border-radius:14px;padding:10px 12px;background:var(--card)}
+.c-note-item{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}.c-note-item p{margin:0}.c-note-item details summary{cursor:pointer}
 .c-verdict.bon{border-color:#1F8A4C}
 .c-verdict span{font-size:13px;color:var(--ink2)}
 .c-verdict p{margin:4px 0 0;font-size:16px;line-height:1.4}
@@ -264,6 +265,7 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
     <div style="display:flex;gap:6px;align-items:center">
       <button class="chip" id="bg-chip" hidden aria-expanded="false" aria-controls="bg-panel"><span class="dot off" id="bg-dot"></span><span id="bg-txt">B&amp;G</span></button>
       <span class="chip" id="rec-chip"><span class="dot off" id="rec-dot"></span><span id="rec-txt">À quai</span></span>
+      <button class="ibtn" id="rec-notebtn" hidden aria-label="Écrire une note de bord"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path><path d="M13 7l4 4"></path></svg></button>
     </div>
   </div>
   <div class="map" id="map-wrap">
@@ -386,7 +388,8 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
 <section class="view" id="v-car" aria-label="Carnet de bord">
   <div class="top">
     <div style="min-width:0"><h1>Carnet de bord</h1><div class="sub" id="c-sub">Chargement…</div></div>
-    <button class="ibtn c-plus" id="c-plus" aria-label="Ajouter au carnet"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+    <div style="display:flex;gap:6px;flex-shrink:0"><button class="ibtn" id="c-notebtn" aria-label="Écrire une note de bord"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"></path><path d="M13 7l4 4"></path></svg></button>
+    <button class="ibtn c-plus" id="c-plus" aria-label="Ajouter au carnet"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button></div>
   </div>
   <div class="c-band" id="c-band" hidden role="status"></div>
   <div class="c-filtres" id="c-filtres" aria-label="Moment de la sortie"></div>
@@ -396,6 +399,18 @@ body.bord #t-log,body.bord [data-act="plein"]{display:none!important}
   <div class="top"><button class="chip" id="c-retour" aria-label="Retour au carnet">‹ Carnet</button><span class="sub" id="c-tgrp" style="text-align:right"></span></div>
   <div class="scroll" id="c-tache"></div>
   <div class="c-bas"><button class="btn" id="c-pas">Pas possible aujourd'hui</button><button class="btn acc" id="c-fait">Fait</button></div>
+</section>
+<section class="view" id="v-note" aria-label="Note de bord">
+  <div class="top"><button class="chip" id="n-annuler">Retour</button><h1>Note de bord</h1><span style="width:70px"></span></div>
+  <div class="scroll c-form">
+    <label for="n-texte">Une idée ou un défaut de l'appli</label>
+    <textarea id="n-texte" rows="5" maxlength="2000" class="c-area" placeholder="Sur l'écran Réglages, le conseil change trop souvent quand le vent tourne"></textarea>
+    <div class="c-bas" style="padding:0;position:static;border:0"><button class="btn" id="n-dicter" hidden>Dicter</button><button class="btn acc" id="n-ok" disabled>Envoyer</button></div>
+    <p class="note" id="n-etat" role="status"></p>
+    <p class="card note" style="margin:0">Claude te répond en quelques minutes dès que le téléphone a du réseau, et pose ses questions si besoin. Le vent, la gîte et la vitesse du B&amp;G sont joints, sans la position.</p>
+    <span class="lbl">Notes envoyées</span>
+    <div id="n-liste"></div>
+  </div>
 </section>
 <section class="view" id="v-ajout" aria-label="Ajouter au carnet">
   <div class="top"><button class="chip" id="a-annuler">Annuler</button><h1>Ajouter au carnet</h1><span style="width:70px"></span></div>
@@ -753,9 +768,9 @@ function tab(w) {
   $('v-set').classList.toggle('on', w === 'set'); $('t-set').setAttribute('aria-current', w === 'set' ? 'page' : 'false');
   $('v-rec').classList.toggle('on', w === 'rec'); $('v-log').classList.toggle('on', w === 'log'); $('v-trip').classList.toggle('on', w === 'trip');
   $('t-rec').setAttribute('aria-current', w === 'rec' ? 'page' : 'false'); $('t-log').setAttribute('aria-current', w === 'log' || w === 'trip' ? 'page' : 'false');
-  for (const v of ['car', 'tache', 'ajout', 'bat']) $('v-' + v).classList.toggle('on', w === v);
+  for (const v of ['car', 'tache', 'ajout', 'note', 'bat']) $('v-' + v).classList.toggle('on', w === v);
   $('t-bat').setAttribute('aria-current', w === 'bat' ? 'page' : 'false');
-  $('t-car').setAttribute('aria-current', w === 'car' || w === 'tache' || w === 'ajout' ? 'page' : 'false');
+  $('t-car').setAttribute('aria-current', w === 'car' || w === 'tache' || w === 'ajout' || w === 'note' ? 'page' : 'false');
   if (w === 'rec' && map) setTimeout(() => map.invalidateSize(), 0);
 }
 $('t-rec').onclick = () => tab('rec');
@@ -914,7 +929,8 @@ bordEnvoi();
   document.addEventListener('contextmenu', e => { if (e.target.closest('[data-leg], .cell')) e.preventDefault(); });
 })();
 /* ---------- Carnet de bord : seulement dans l'appli (adresse du service écrite à la compilation, jamais sur le site public) ---------- */
-if (window.CarnetEcran && window.CarnetEcran.start({ config: window.OT_CARNET, secret: NATIVE ? { lire: () => Bord.secretLire({ cle: 'carnet-session' }).then(r => r.valeur), ecrire: valeur => Bord.secretEcrire({ cle: 'carnet-session', valeur }) } : null, bord: BORD, natif: NATIVE && !BORD ? Bord : null, surEnvoi: () => bordEnvoi(), bg: () => mesuresBord(), tab, visible: () => $('v-car').classList.contains('on') })) { $('t-car').hidden = false; bordEnvoi();
+if (window.CarnetEcran && window.CarnetEcran.start({ config: window.OT_CARNET, secret: NATIVE ? { lire: () => Bord.secretLire({ cle: 'carnet-session' }).then(r => r.valeur), ecrire: valeur => Bord.secretEcrire({ cle: 'carnet-session', valeur }) } : null, bord: BORD, natif: NATIVE && !BORD ? Bord : null, dictee: NATIVE ? Bord : null, surEnvoi: () => bordEnvoi(), bg: () => mesuresBord(), tab, visible: () => $('v-car').classList.contains('on') })) { $('t-car').hidden = false; bordEnvoi();
+  $('rec-notebtn').hidden = false; $('rec-notebtn').onclick = () => window.CarnetEcran.ouvrirNote();
   if (window.BateauEcran.start({ service: window.CarnetEcran.service(), pret: window.CarnetEcran.pret(), config: window.OT_CARNET, bord: BORD, tab })) $('t-bat').hidden = false; }
 window.__app = { DB, onPos: p => onPos(p), state: () => rec.state, stats: () => tr && tr.stats() };
 </script>
