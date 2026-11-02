@@ -42,7 +42,11 @@
       while (file.length) {
         const op = file[0];
         try { await S.envoyer(op, pid => PDB.get(pid)); }
-        catch (e) { if (!e.definitif) throw e; erreurs.push(e.message); }
+        catch (e) {
+          if (!e.definitif) throw e; erreurs.push(e.message);
+          // note de bord refusée (limite du service après une réinstallation, par exemple) : son texte revient dans le brouillon
+          if (op.action && op.action.genre === 'note' && !op.tache && op.action.note) LS.set('note-brouillon', [LS.get('note-brouillon'), op.action.note].filter(Boolean).join('\n\n'));
+        }
         file.shift(); garderFile(); for (const pid of op.photos) PDB.del(pid).catch(() => {});
         if (op.tripId != null) { envoyees = envoyees.filter(x => x !== op.tripId).concat([op.tripId]).slice(-20); LS.set('carnet-sorties-envoyees', JSON.stringify(envoyees)); if (ctx.surEnvoi) ctx.surEnvoi(); }
       }
@@ -161,9 +165,11 @@
   let dictee = false, avantDictee = '';
   const tacheNotes = () => d.taches.find(t => t.cle === C.CLE_NOTES + (qui().bateau || 'b31'));
   function ouvrirNote() { $('n-texte').value = LS.get('note-brouillon') || ''; $('n-etat').textContent = ''; ctx.tab('note'); dessinerNote(); }
+  const envoisNotes = () => { try { return JSON.parse(LS.get('notes-envois') || '[]'); } catch (e) { return []; } };
   function dessinerNote() {
-    const t = tacheNotes(), txt = $('n-texte').value.trim();
-    $('n-ok').disabled = !txt || !t || dictee;
+    const t = tacheNotes(), txt = $('n-texte').value.trim(), reste = C.notesRestantes(envoisNotes(), Date.now());
+    $('n-ok').disabled = !txt || !t || dictee || !reste;
+    if (!reste) $('n-etat').textContent = 'Limite de ' + C.LIMITE_NOTES + ' notes par jour atteinte. La note reste ici ; tu pourras l’envoyer demain.';
     $('n-dicter').hidden = !ctx.dictee; $('n-dicter').textContent = dictee ? 'Arrêter la dictée' : 'Dicter';
     if (!t) $('n-etat').textContent = 'Il faut du réseau une première fois pour ouvrir les notes de bord. La note reste ici en attendant.';
     const l = t ? C.notes(d, file, t.id) : [];
@@ -176,8 +182,9 @@
     }).join('') : '<p class="note">Aucune note pour l’instant.</p>';
   }
   function envoyerNote() {
-    const t = tacheNotes(), txt = $('n-texte').value.trim(); if (!t || !txt) return;
+    const t = tacheNotes(), txt = $('n-texte').value.trim(), now = Date.now(); if (!t || !txt || !C.notesRestantes(envoisNotes(), now)) return;
     if (dictee) arreterDictee();
+    LS.set('notes-envois', JSON.stringify(envoisNotes().filter(x => x > now - 864e5).concat([now])));
     file.push(C.nouvelleAction({ tacheId: t.id, genre: 'note', bord: ctx.bord, nom: qui().nom, note: txt, v: ctx.bg(), photos: [] }));
     garderFile(); $('n-texte').value = ''; LS.set('note-brouillon', ''); $('n-etat').textContent = 'Note envoyée' + (hors ? ' au retour du réseau.' : '.');
     dessinerNote(); synchro();

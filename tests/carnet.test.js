@@ -116,6 +116,10 @@ ok(C.filtres(dr).join('|') === 'Tout|À quai, avant de partir|Au près|Mouillage
   const fn = [C.nouvelleAction({ tacheId: 'tn', genre: 'note', bord: true, nom: 'Papa', note: 'Sans réseau', now: Date.parse('2026-11-02T12:00:00Z') })];
   ok(C.estNotes(dn.taches[0]) && !C.estNotes(dn.taches[1]), 'tâche des notes reconnue par sa clé');
   ok(C.resteAFaire(dn, []) === 1 && !C.grouper(dn, [], 'Tout').some(g => g.items.some(i => i.t.id === 'tn')) && !C.filtres(dn).includes('Notes de bord'), 'notes hors de la liste, du compte et des filtres');
+  const h = 3600e3, maintenant = 100 * 864e5;
+  ok(C.notesRestantes([], maintenant) === 20 && C.notesRestantes(Array(19).fill(maintenant - h), maintenant) === 1 &&
+     C.notesRestantes(Array(20).fill(maintenant - h), maintenant) === 0 && C.notesRestantes(Array(20).fill(maintenant - 25 * h), maintenant) === 20,
+     'notes : 20 par 24 heures, les plus anciennes ne comptent plus');
   const ln = C.notes(dn, fn, 'tn');
   ok(ln.length === 3 && ln[0].attente && ln[0].note === 'Sans réseau' && ln[1].note === 'Et la barre' && !ln[1].verif && ln[2].verif.message === 'Sur quel écran ?', 'notes : la plus récente en tête, réponse de Claude jointe');
   console.log(fail ? fail + ' échec(s)' : 'tous les tests passent'); process.exit(fail ? 1 : 0);

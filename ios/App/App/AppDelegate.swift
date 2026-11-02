@@ -396,12 +396,14 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
     private func lancerDictee() throws {
         finirDictee()
         guard let r = dicteur, r.isAvailable else { throw NSError(domain: "dictee", code: 1, userInfo: [NSLocalizedDescriptionKey: "reconnaissance vocale indisponible"]) }
+        // jamais de voix envoyée chez Apple (risque R27) : sans reconnaissance sur le téléphone, pas de dictée
+        guard r.supportsOnDeviceRecognition else { throw NSError(domain: "dictee", code: 2, userInfo: [NSLocalizedDescriptionKey: "cet iPhone ne sait pas transcrire la voix sans l'envoyer chez Apple ; écris la note"]) }
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.record, mode: .measurement, options: .duckOthers)
         try session.setActive(true, options: .notifyOthersOnDeactivation)
         let demande = SFSpeechAudioBufferRecognitionRequest()
         demande.shouldReportPartialResults = true
-        if r.supportsOnDeviceRecognition { demande.requiresOnDeviceRecognition = true }   // sur le téléphone : marche sans réseau, rien ne part chez Apple
+        demande.requiresOnDeviceRecognition = true   // sur le téléphone : marche sans réseau, rien ne part chez Apple
         let moteur = AVAudioEngine(), entree = moteur.inputNode
         entree.installTap(onBus: 0, bufferSize: 1024, format: entree.outputFormat(forBus: 0)) { b, _ in demande.append(b) }
         moteur.prepare(); try moteur.start()

@@ -86,6 +86,9 @@
     });
     return enFile.concat(envoyees).sort((x, y) => x.fait_le < y.fait_le ? 1 : -1).slice(0, 30);
   }
+  // 20 notes par téléphone et par 24 heures (décision du 02/11/2026) ; le service refuse la 21e, l'appli prévient avant
+  const LIMITE_NOTES = 20;
+  const notesRestantes = (envois, now) => Math.max(0, LIMITE_NOTES - (envois || []).filter(t => t > now - 864e5).length);
   const resteAFaire = (d, file) => d.taches.filter(t => !estNotes(t) && !etat(t, d, file).fini).length;
 
   // groupes dans l'ordre du bord (à quai, au près…), tâches finies en bas de leur groupe ; les tâches en réserve (retirées
@@ -219,6 +222,6 @@
     return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('photo illisible')), 'image/jpeg', 0.85));
   }
 
-  const api = { CLE_NOTES, estNotes, notes, CLE_SORTIE, GROUPES, RESERVE, GENRES, MESURES, DIFF, INTERET, effort, auteur, uuid, mesuresBG, lireFile, nouvelleAction, nouvelAjout, nouvelleSortie, etat, resteAFaire, grouper, filtres, Service, reduire };
+  const api = { CLE_NOTES, estNotes, notes, LIMITE_NOTES, notesRestantes,CLE_SORTIE, GROUPES, RESERVE, GENRES, MESURES, DIFF, INTERET, effort, auteur, uuid, mesuresBG, lireFile, nouvelleAction, nouvelAjout, nouvelleSortie, etat, resteAFaire, grouper, filtres, Service, reduire };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Carnet = api;
 })(typeof self !== 'undefined' ? self : this);

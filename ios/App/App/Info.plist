@@ -31,7 +31,7 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Pour dicter une note de bord. La voix est transcrite sur le téléphone ; seul le texte est envoyé au carnet.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Pour transformer une note de bord dictée en texte, sur le téléphone quand il le permet.</string>
+	<string>Pour transformer une note de bord dictée en texte, sur le téléphone : la voix ne quitte pas l’iPhone.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Pour les photos du carnet de bord (voiles, réglages, instruments). La position est retirée avant l'envoi.</string>
 	<key>NSLocalNetworkUsageDescription</key>
