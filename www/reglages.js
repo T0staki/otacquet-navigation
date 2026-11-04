@@ -21,7 +21,8 @@
   const S = { hdgSet: null, man: {}, val: {}, pose: {}, expert: false, edit: false, meteo: null, meteoErr: '', corr: null };
   // Modes (Jérémie, 02/11/2026) : les réglages affichés restent tant qu'ils donnent au moins 80 % (normal) ou 95 % (performance) de la vitesse max du modèle.
   // Quand il faut changer, un réglage qui ne rapporterait pas 0,05 nd reste où il est (départage entre réglages presque équivalents). Ris et génois : règles inchangées.
-  const MODES = { normal: 0.8, perf: 0.95 }, DEPARTAGE = 0.05, TENUS = ['mainSet', 'jibSet', 'trav', 'vang', 'bs', 'car'];
+  // Chariot de GV et hale-bas (Jérémie, 02/11/2026 : « on ne touche presque jamais au chariot ni au hale-bas ») : 0,1 nd.
+  const MODES = { normal: 0.8, perf: 0.95 }, DEPARTAGE = 0.05, DEPARTAGE_CHARIOT = 0.1, TENUS = ['mainSet', 'jibSet', 'trav', 'vang', 'bs', 'car'];
   try { S.mode = MODES[localStorage.getItem('mode-reglages')] ? localStorage.getItem('mode-reglages') : 'normal'; } catch (e) { S.mode = 'normal'; }
   let tenu = null;   // réglages affichés : { cle de case, c (config du moteur), part (vitesse gardée / max) }
   const touche = {};
@@ -261,7 +262,7 @@
     const n = Object.assign({}, r.c);
     for (const k of libres) {
       if (tenu.c[k] == null || n[k] == null || tenu.c[k] === n[k]) continue;
-      if (r.V - vitesseAvec(r, Object.assign({}, n, { [k]: tenu.c[k] })) < DEPARTAGE) n[k] = tenu.c[k];
+      if (r.V - vitesseAvec(r, Object.assign({}, n, { [k]: tenu.c[k] })) < (k === 'trav' || k === 'vang' ? DEPARTAGE_CHARIOT : DEPARTAGE)) n[k] = tenu.c[k];
     }
     tenu = { c: Object.assign({}, n), part: vitesseAvec(r, n) / r.V };
     return Object.assign({}, r, { c: n });
