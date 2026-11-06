@@ -256,6 +256,8 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
         }
     }
 
+    // Chaque paquet part daté (t, en millisecondes) : écran verrouillé, la page ne se réveille que toutes les 3 à 10 s et reçoit
+    // alors plusieurs paquets d'un coup ; elle fait ses relevés à ces dates, sans perdre les secondes où elle dormait (sortie du 05/11).
     private func recevoirVulcan(_ c: NWConnection) {
         c.receiveMessage { [weak self] data, ctx, _, err in
             guard let self = self else { return }
@@ -274,7 +276,7 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
                         guard let self = self else { return }
                         self.vulcanPrevu = false
                         let l = self.vulcanRecu; self.vulcanRecu.removeAll()
-                        if !l.isEmpty { self.notifyListeners("vulcan", data: ["messages": l]) }
+                        if !l.isEmpty { self.notifyListeners("vulcan", data: ["messages": l, "t": Date().timeIntervalSince1970 * 1000]) }
                     }
                 }
             }
@@ -368,7 +370,7 @@ public class BordPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDelegate 
             guard let self = self else { return }
             self.envoiPrevu = false
             let l = self.enAttente; self.enAttente.removeAll()
-            if !l.isEmpty { self.notifyListeners("nmea", data: ["lignes": l.joined(separator: "\n")]) }
+            if !l.isEmpty { self.notifyListeners("nmea", data: ["lignes": l.joined(separator: "\n"), "t": Date().timeIntervalSince1970 * 1000]) }
         }
     }
 

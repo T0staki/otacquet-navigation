@@ -589,6 +589,7 @@ function setState(st) {
 }
 /* Instruments du bord (appli iPhone) : B&G par le Wi-Fi. NMEA 0183 (une valeur par seconde), complété par le port 2053 du Vulcan
    (deux par seconde, www/gofree.js) pour l'affichage et les relevés : deux relevés par seconde avec le port 2053, sinon un.
+   Dans l'appli, les relevés se font à l'arrivée de chaque paquet du module natif, à sa date : écran verrouillé, ils ne tombent plus à un toutes les 3 à 10 s.
    L'écran Réglages ne lit que le NMEA 0183 (objet bord). */
 const bord = window.Nmea ? new window.Nmea.Bord() : null, vulcan = window.Gofree ? new window.Gofree.Vulcan() : null; let ins = [], insLast = 0, bgState = '';
 const INS_KEYS = ['stw', 'tws', 'twa', 'twd', 'aws', 'awa', 'heading', 'xdr_heel', 'xdr_trim', 'depth', 'sog', 'cog', 'waterTemp', 'rudder', 'turn_rate', 'pilot', 'pilot_wind'];
@@ -637,7 +638,7 @@ async function start(resume) {
   initMap();
   if (!resume) { tr = new J.Trace(); rec = { id: Date.now(), start: Date.now(), state: 'run', bg0: bord ? [bord.n, bord.bad] : null }; gaps = []; ins = []; line && line.setLatLngs([]); }
   setState('run'); follow = true; gpsOn(); keepAwake();
-  clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); suiviVerrou(); }, 500);
+  clearInterval(tick); tick = setInterval(() => { show(); showIns(); if (!NATIVE) sampleIns(Date.now()); suiviMer(); suiviVerrou(); }, 500);
   suiviMer(true);
   clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000);
 }
@@ -791,7 +792,7 @@ $('t-bat').onclick = () => { tab('bat'); window.BateauEcran.dessiner(); };
       tr = J.Trace.fromPoints([]); tr.pts = lv.pts; rec = { id: lv.id, start: lv.start, state: 'pause' }; gaps = lv.gaps || []; ins = lv.ins || [];
       if (line) line.setLatLngs(lv.pts.map(p => [p.lat, p.lon]));
       const w = $('lock-warn'); w.hidden = false; w.textContent = 'Enregistrement interrompu retrouvé (' + fr(tr.stats().distanceNM, 2) + ' M depuis ' + hm(lv.start) + ') : reprends-le ou termine-le.';
-      setState('pause'); clearInterval(tick); tick = setInterval(() => { show(); showIns(); sampleIns(Date.now()); suiviMer(); suiviVerrou(); }, 500); clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000); show();
+      setState('pause'); clearInterval(tick); tick = setInterval(() => { show(); showIns(); if (!NATIVE) sampleIns(Date.now()); suiviMer(); suiviVerrou(); }, 500); clearInterval(rec.saver); rec.saver = setInterval(saveLive, 15000); show();
     }
   } catch (e) {}
 })();
@@ -801,11 +802,12 @@ if (NATIVE) {
   $('bg-chip').hidden = false;
   Bord.addListener('position', d => onPos({ timestamp: d.t, coords: { latitude: d.lat, longitude: d.lon, accuracy: d.acc, speed: d.sog != null ? d.sog / J.MS_TO_KN : null, heading: d.cog != null ? d.cog : null } }));
   Bord.addListener('etatgps', d => { if (d.etat === 'refuse') $('gps-state').textContent = 'GPS refusé : Réglages › O\'Tacquet › Position'; });
-  Bord.addListener('nmea', d => { bord.feed(d.lignes); $('bg-dbg').textContent = bord.n + ' phrases lues · ' + bord.bad + ' rejetées · reçu : ' + Object.keys(bord.types).sort().join(' '); });
+  // relevés faits à la date d'arrivée de chaque paquet (t, donnée par le module natif) et non au réveil de la page, qui dort écran verrouillé
+  Bord.addListener('nmea', d => { const t = d.t || Date.now(); bord.feed(d.lignes, t); sampleIns(t); $('bg-dbg').textContent = bord.n + ' phrases lues · ' + bord.bad + ' rejetées · reçu : ' + Object.keys(bord.types).sort().join(' '); });
   // port 2053 du Vulcan : lecture seule, messages filtrés ici (Gofree.Vulcan.permis) et dans le module natif
   const vulcanEnvoi = o => { if (window.Gofree.Vulcan.permis(o)) Bord.vulcanEnvoi({ texte: JSON.stringify(o) }).catch(() => {}); };
   Bord.addListener('vulcanEtat', d => { if (vulcan && d.etat === 'connecte') vulcan.demandes().forEach(vulcanEnvoi); });
-  Bord.addListener('vulcan', d => { if (vulcan) for (const m of d.messages || []) vulcan.recevoir(m).forEach(vulcanEnvoi); });
+  Bord.addListener('vulcan', d => { if (!vulcan) return; const t = d.t || Date.now(); for (const m of d.messages || []) vulcan.recevoir(m, t).forEach(vulcanEnvoi); sampleIns(t); });
   Bord.addListener('etat', d => {
     bgState = d.etat; const ok = d.etat === 'connecte';
     $('bg-chip').classList.toggle('ok', ok); $('bg-dot').className = 'dot' + (ok ? '' : ' off');
